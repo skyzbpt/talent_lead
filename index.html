@@ -890,7 +890,7 @@ document.addEventListener("change",e=>{
   const t=e.target;
   if(t.matches(".chip input")) refreshChip(t);
   if(t.matches(".flag input")) refreshFlag(t);
-  scheduleUpdateSev(); scheduleSave();
+  scheduleUpdateSev(); scheduleSave(); updateProgress();
 });
 document.addEventListener("input",()=>{ scheduleSave(); updateProgress(); });
 
