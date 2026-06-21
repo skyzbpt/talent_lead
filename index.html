@@ -810,6 +810,7 @@ function updateGeneSummary(){
 
 /* ---------- Severity ---------- */
 function getSeverity(sym){
+  if(!sym.dataset.saved) return null;           // 未儲存不計算
   const stateInp=sym.querySelector('.t input:checked');
   if(!stateInp) return null;
   const state=stateInp.value;
@@ -870,11 +871,14 @@ function scheduleUpdateSev(){ clearTimeout(sevTimer); sevTimer=setTimeout(update
 /* Sym-level save & clear */
 document.querySelectorAll("[data-sym]").forEach(sym=>{
   sym.querySelector("[data-symsave]")?.addEventListener("click",()=>{
+    sym.dataset.saved='1';
     save();
     sym.classList.remove("open");
+    scheduleUpdateSev(); updateProgress();
     toast("已儲存");
   });
   sym.querySelector("[data-symclear]")?.addEventListener("click",()=>{
+    delete sym.dataset.saved;
     sym.querySelectorAll(".t input").forEach(inp=>{ inp.checked=false; });
     sym.querySelectorAll(".sym-detail input").forEach(inp=>{
       if(inp.type==="radio"){ inp.checked=false; inp.dataset.was="0"; }
@@ -939,6 +943,12 @@ function collect(){
     else if(el.type==="radio"){ if(el.checked) d[el.name]=el.value; }
     else if(el.value!=="") d[el.name]=el.value;
   });
+  const saved=[];
+  document.querySelectorAll('[data-sym][data-saved]').forEach(sym=>{
+    const inp=sym.querySelector('.t input[type=radio]');
+    if(inp) saved.push(inp.name);
+  });
+  d['__savedSyms']=saved;
   return d;
 }
 function apply(data){
@@ -963,6 +973,12 @@ function apply(data){
     inp.dataset.was=inp.checked?"1":"0";
   });
   document.querySelectorAll(".prio-input").forEach(ta=>{ ta.style.height="auto"; ta.style.height=ta.scrollHeight+"px"; });
+  if(Array.isArray(data['__savedSyms'])){
+    data['__savedSyms'].forEach(nm=>{
+      const inp=form.querySelector(`input[name="${nm}"]`);
+      if(inp) inp.closest('[data-sym]').dataset.saved='1';
+    });
+  }
 }
 function save(){
   try{
@@ -1105,6 +1121,7 @@ const modal=document.getElementById("modal");
 function doClear(){
   try{localStorage.removeItem(KEY);}catch(e){}
   form.reset();
+  document.querySelectorAll('[data-sym]').forEach(sym=>delete sym.dataset.saved);
   document.querySelectorAll(".on").forEach(el=>el.classList.remove("on"));
   document.querySelectorAll(".sym.open").forEach(el=>el.classList.remove("open"));
   document.querySelectorAll(".dchip input,.medopt input").forEach(i=>i.dataset.was="0");
