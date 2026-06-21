@@ -216,6 +216,16 @@ footer{text-align:center;color:var(--ink-soft);font-size:.74rem;margin-top:28px;
   padding:22px 16px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
 footer p:first-child{font-weight:600;margin-bottom:7px;color:var(--ink)}
 
+.sym-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;grid-column:1/-1}
+.sym-btn-save{font-family:inherit;font-size:.8rem;font-weight:600;padding:8px 18px;
+  border-radius:8px;border:none;cursor:pointer;background:var(--teal);color:#fff;
+  transition:.15s;-webkit-tap-highlight-color:transparent}
+.sym-btn-save:active{filter:brightness(.9)}
+.sym-btn-clear{font-family:inherit;font-size:.8rem;font-weight:500;padding:8px 14px;
+  border-radius:8px;border:1px solid var(--line-strong);cursor:pointer;
+  background:#fff;color:var(--ink-soft);transition:.15s;-webkit-tap-highlight-color:transparent}
+.sym-btn-clear:active{background:var(--bg)}
+
 /* Severity indicators */
 .sev-dot{display:none;align-items:center;justify-content:center;flex:0 0 auto;width:16px;height:16px}
 .sec-badges{display:flex;gap:5px;align-items:center;flex-wrap:nowrap;flex:0 0 auto}
@@ -544,6 +554,10 @@ function buildSym(sec){
         </div>
         <div><label>透過什麼改善（藥）</label><input type="text" name="${base}fix"></div>
         <div class="full"><label>備註</label><input type="text" name="${base}note"></div>
+        <div class="sym-actions">
+          <button type="button" class="sym-btn-clear" data-symclear>清除紀錄</button>
+          <button type="button" class="sym-btn-save" data-symsave>儲存</button>
+        </div>
       </div>
     </div>`;
   }).join("");
@@ -852,6 +866,26 @@ function updateAllSeverities(){
 }
 let sevTimer;
 function scheduleUpdateSev(){ clearTimeout(sevTimer); sevTimer=setTimeout(updateAllSeverities,80); }
+
+/* Sym-level save & clear */
+document.querySelectorAll("[data-sym]").forEach(sym=>{
+  sym.querySelector("[data-symsave]")?.addEventListener("click",()=>{
+    save();
+    sym.classList.remove("open");
+    toast("已儲存");
+  });
+  sym.querySelector("[data-symclear]")?.addEventListener("click",()=>{
+    sym.querySelectorAll(".t input").forEach(inp=>{ inp.checked=false; });
+    sym.querySelectorAll(".sym-detail input").forEach(inp=>{
+      if(inp.type==="radio"){ inp.checked=false; inp.dataset.was="0"; }
+      else inp.value="";
+    });
+    sym.querySelectorAll(".dchip,.t").forEach(el=>el.classList.remove("on"));
+    refreshSym(sym);
+    scheduleUpdateSev(); scheduleSave(); updateProgress();
+    toast("已清除此筆紀錄");
+  });
+});
 
 /* ---------- Interactions ---------- */
 document.querySelectorAll(".sec-head").forEach(h=>{
