@@ -439,7 +439,8 @@ footer p:first-child{font-weight:600;margin-bottom:7px;color:var(--ink)}
   <footer>
     <p>🔒 隱私聲明</p>
     <p>本表單所填寫之個人健康資料，僅供天領 Talent Lead 健康顧問進行諮詢評估使用。所有資料儲存於您的本機瀏覽器，不會自動上傳或傳送至任何伺服器。輸出之 HTML 檔案請妥善保管，避免未授權之第三方取得。本諮詢內容不構成醫療診斷，如有健康疑慮請諮詢專業醫師。</p>
-    <div class="footer-actions">
+    <div class="footer-actions" style="gap:10px;flex-wrap:wrap">
+      <button type="button" class="btn" id="btnExport" style="background:var(--teal);color:#fff">📋 複製諮詢資料</button>
       <button type="button" class="btn btn-ghost" id="btnClear">清除所有資料</button>
     </div>
   </footer>
@@ -1114,6 +1115,115 @@ document.getElementById("btnPrintGene").addEventListener("click", function(){
   a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 30000);
   toast("已開啟新分頁，請在頁面內按「列印 / 儲存 PDF」");
+});
+
+/* ---------- Export consultation data (for transfer to Notion) ---------- */
+function buildExportText(){
+  const d=collect();
+  const g=k=>(d[k]==null?"":String(d[k])).trim();
+  const yes=k=>d[k]===true||d[k]==="true";
+  const L=[];
+  L.push("【天領 Talent Lead 健康諮詢資料】","");
+  L.push("■ 基本資料");
+  L.push(`姓名：${g("姓名")||"—"}`);
+  L.push(`諮詢日期：${g("日期")||"—"}　初/復次：${g("初復次")||"—"}`);
+  L.push(`性別：${g("性別")||"—"}　生日：${g("生日")||"—"}　年紀：${g("年紀")||"—"}`);
+  L.push(`職業：${g("職業")||"—"}　健康顧問：${document.getElementById("advisorName").textContent.trim()||"—"}`);
+  L.push(`目前問題主述：${g("目前問題主述")||"—"}`);
+  L.push(`過去及家族病史：${g("過去病史")||"—"}`);
+  const chronic=[["f_血壓","血壓"],["f_血糖","血糖"],["f_血脂","血脂"],["f_壓力","壓力"],["f_癌症","癌症"]].filter(([k])=>yes(k)).map(([,v])=>v);
+  if(g("慢性其他"))chronic.push(g("慢性其他"));
+  L.push(`慢性指標：${chronic.length?chronic.join("、"):"無"}`);
+  L.push(`相關診斷及用藥：${g("用藥情況")||"—"}`);
+  L.push(`自評健康分數：${g("自評健康分數")||"—"} / 10`);
+  const expect=[["期待_早期發現問題","早期發現問題"],["期待_找出不適原因","找出身體不適原因"],["期待_了解體質","了解體質"],["期待_保養方式","找出適合的保養方式"]].filter(([k])=>yes(k)).map(([,v])=>v);
+  L.push(`本次諮詢期待：${expect.length?expect.join("、"):"—"}`);
+  L.push(`體位：身高 ${g("身高")||"—"} cm　體重 ${g("體重")||"—"} kg　體脂 ${g("體脂")||"—"} %　內臟脂肪 ${g("內臟脂肪")||"—"} 級`,"");
+
+  let totW=0,totMax=0; const secLines=[];
+  SYM_SECTIONS.forEach(sec=>{
+    const secEl=document.getElementById("s-"+sec.id); if(!secEl)return;
+    const c={red:0,yellow:0,green:0}; const items=[];
+    secEl.querySelectorAll("[data-sym]").forEach(sym=>{
+      const lv=getSeverity(sym); if(!lv)return;
+      c[lv]++; totMax+=3; totW+=(lv==="red"?3:lv==="yellow"?2:1);
+      const nm=sym.querySelector(".sym-name")?.textContent.trim();
+      const st=sym.querySelector(".t input:checked")?.value==="past"?"曾經":"目前";
+      const deg=sym.querySelector('input[name$="_deg"]:checked')?.value||"";
+      const freq=sym.querySelector('input[name$="_freq"]:checked')?.value||"";
+      const dur=sym.querySelector('input[name$="_dur"]:checked')?.value||"";
+      const fix=sym.querySelector('input[name$="_fix"]')?.value.trim()||"";
+      const note=sym.querySelector('input[name$="_note"]')?.value.trim()||"";
+      const mark={red:"🔴",yellow:"🟡",green:"🟢"}[lv];
+      const det=[st,deg&&`程度${deg}`,freq&&`${freq}次/週`,dur,fix&&`改善:${fix}`,note&&`備註:${note}`].filter(Boolean).join("，");
+      items.push(`    ${mark} ${nm}（${det}）`);
+    });
+    if(c.red+c.yellow+c.green>0){ secLines.push(`● ${sec.title}：🔴${c.red} 🟡${c.yellow} 🟢${c.green}`); items.forEach(i=>secLines.push(i)); }
+  });
+  const pct=totMax>0?Math.round(totW/totMax*100):0;
+  const label=pct>=70?"高風險":pct>=45?"需注意":pct>=25?"輕微":"良好";
+  L.push("■ 系統風險評估",`整體風險指數：${pct} / 100（${label}）`);
+  if(secLines.length)secLines.forEach(l=>L.push(l)); else L.push("（尚未填寫症狀）");
+  L.push("");
+
+  L.push("■ 健康檢查",`健檢時間：${g("健檢時間")||"—"}　頻率：${g("健檢頻率")||"—"}`);
+  LAB_FIELDS.forEach((f,i)=>{
+    if(f.type==="num"){
+      const v=g(`lab_${i}_val`); if(!v)return;
+      const med=g(`lab_${i}_med`); let flag="";
+      if(f.normal){ const nv=parseFloat(v); if(!isNaN(nv)&&(nv<f.normal[0]||nv>f.normal[1]))flag=" ⚠異常"; }
+      L.push(`${f.label}：${v} ${f.unit||""}${med?`（${med}）`:""}${flag}`);
+    }else{ const v=g(`lab_${i}`); if(v)L.push(`${f.label}：${v}`); }
+  });
+  L.push("");
+
+  L.push("■ 基因建議");
+  const promote=[["促進_生活型態","改變生活型態"],["促進_飲食習慣","改變飲食習慣"],["促進_營養補充","使用營養補充品"]].filter(([k])=>yes(k)).map(([,v])=>v);
+  L.push(`促進健康方式：${promote.length?promote.join("、"):"—"}`);
+  for(let i=1;i<=3;i++){ const p=g(`主要問題${i}`),im=g(`改善方式${i}`); if(p||im)L.push(`${i}. 問題：${p||"—"} → 改善：${im||"—"}`); }
+  return L.join("\n");
+}
+function exportFileName(ext){
+  const d=collect();
+  const name=(d["姓名"]||"未命名").toString().trim()||"未命名";
+  const date=(d["日期"]||new Date().toISOString().slice(0,10)).toString().trim();
+  return `健康諮詢_${name}_${date}.${ext}`;
+}
+function downloadText(txt){
+  const blob=new Blob([txt],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=exportFileName("txt");
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000); toast("已下載 .txt 檔");
+}
+function showExportFallback(txt){
+  const ov=document.createElement("div"); ov.className="modal-overlay show";
+  const box=document.createElement("div"); box.className="modal-box"; box.style.maxWidth="540px";
+  const ta=document.createElement("textarea");
+  ta.readOnly=true; ta.value=txt;
+  ta.style.cssText="width:100%;height:230px;font-size:.8rem;line-height:1.55;border:1px solid var(--line-strong);border-radius:10px;padding:10px";
+  box.innerHTML=`<h3>複製諮詢資料</h3><p>自動複製未成功，請手動選取下方文字複製，或下載檔案。</p>`;
+  const btns=document.createElement("div"); btns.className="modal-btns"; btns.style.marginTop="14px";
+  const bClose=document.createElement("button"); bClose.type="button"; bClose.className="btn btn-ghost"; bClose.textContent="關閉";
+  const bDl=document.createElement("button"); bDl.type="button"; bDl.className="btn"; bDl.style.cssText="background:var(--teal);color:#fff"; bDl.textContent="下載 .txt";
+  btns.append(bClose,bDl); box.append(ta,btns); ov.appendChild(box); document.body.appendChild(ov);
+  ta.focus(); ta.select();
+  const close=()=>ov.remove();
+  bClose.onclick=close; bDl.onclick=()=>downloadText(txt);
+  ov.addEventListener("click",e=>{ if(e.target===ov)close(); });
+}
+function fallbackCopy(txt){
+  const ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.top="-9999px";
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  let ok=false; try{ ok=document.execCommand("copy"); }catch(e){}
+  ta.remove();
+  if(ok) toast("✓ 諮詢資料已複製，貼給顧問即可"); else showExportFallback(txt);
+}
+document.getElementById("btnExport").addEventListener("click",()=>{
+  const txt=buildExportText();
+  if(navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(txt).then(()=>toast("✓ 諮詢資料已複製，貼給顧問即可"),()=>fallbackCopy(txt));
+  }else fallbackCopy(txt);
 });
 
 /* ---------- Clear modal ---------- */
