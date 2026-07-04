@@ -1,0 +1,5 @@
+{
+  "name": "talent-lead-notion-worker",
+  "private": true,
+  "type": "module"
+}
