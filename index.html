@@ -443,6 +443,7 @@ footer p:first-child{font-weight:600;margin-bottom:7px;color:var(--ink)}
       <button type="button" class="btn" id="btnNotion" style="background:var(--violet);color:#fff">☁️ 上傳到 Notion</button>
       <button type="button" class="btn" id="btnExport" style="background:var(--teal);color:#fff">📋 複製諮詢資料</button>
       <button type="button" class="btn btn-ghost" id="btnNotionCfg" title="Notion 上傳設定">⚙ Notion 設定</button>
+      <button type="button" class="btn btn-ghost" id="btnBrand" title="上傳品牌 Logo／Favicon">🖼 品牌設定</button>
       <button type="button" class="btn btn-ghost" id="btnClear">清除所有資料</button>
     </div>
   </footer>
@@ -1390,6 +1391,112 @@ brandMark.addEventListener("contextmenu", e=>{
     toast("已恢復預設圖示");
   }
 });
+
+/* ---------- Favicon ---------- */
+const FAVICON_KEY = "tl_brand_favicon_v1";
+function applyFavicon(dataUrl){
+  let link = document.getElementById("faviconLink");
+  if(!link){
+    link = document.createElement("link");
+    link.id = "faviconLink";
+    link.rel = "icon";
+    document.head.appendChild(link);
+  }
+  link.href = dataUrl;
+}
+function removeFavicon(){
+  document.getElementById("faviconLink")?.remove();
+}
+try{
+  const savedFav = localStorage.getItem(FAVICON_KEY);
+  if(savedFav) applyFavicon(savedFav);
+}catch(e){}
+
+/* ---------- Brand settings modal (Logo + Favicon) ---------- */
+function showBrandSettings(){
+  const ov=document.createElement("div"); ov.className="modal-overlay show";
+  const box=document.createElement("div"); box.className="modal-box"; box.style.maxWidth="440px";
+  box.innerHTML=`<h3>品牌設定</h3>
+    <p>Logo 顯示於表單左上角；Favicon 顯示於瀏覽器分頁圖示。建議使用正方形圖片，僅儲存於本機瀏覽器。</p>
+    <div style="display:flex;align-items:center;gap:14px;margin:16px 0">
+      <div id="bsLogoPreview" style="width:46px;height:46px;border-radius:11px;background:linear-gradient(140deg,var(--teal),var(--teal-deep));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;overflow:hidden;flex:0 0 auto"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.86rem;font-weight:600;margin-bottom:7px">Logo（表單標誌）</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-ghost" id="bsLogoUpload" style="padding:8px 14px;font-size:.8rem;min-height:auto">上傳圖片</button>
+          <button type="button" class="btn btn-ghost" id="bsLogoRemove" style="padding:8px 14px;font-size:.8rem;min-height:auto">移除</button>
+        </div>
+        <input type="file" id="bsLogoFile" accept="image/*" style="display:none">
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin:16px 0;padding-top:16px;border-top:1px solid var(--line)">
+      <div id="bsFaviconPreview" style="width:32px;height:32px;border-radius:7px;background:var(--bg);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;font-size:.66rem;color:var(--ink-faint)"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.86rem;font-weight:600;margin-bottom:7px">Favicon（瀏覽器分頁圖示）</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-ghost" id="bsFaviconUpload" style="padding:8px 14px;font-size:.8rem;min-height:auto">上傳圖片</button>
+          <button type="button" class="btn btn-ghost" id="bsFaviconRemove" style="padding:8px 14px;font-size:.8rem;min-height:auto">移除</button>
+        </div>
+        <input type="file" id="bsFaviconFile" accept="image/*" style="display:none">
+      </div>
+    </div>`;
+  const btns=document.createElement("div"); btns.className="modal-btns";
+  const bClose=document.createElement("button"); bClose.type="button"; bClose.className="btn"; bClose.style.cssText="background:var(--teal);color:#fff"; bClose.textContent="完成";
+  btns.appendChild(bClose); box.appendChild(btns); ov.appendChild(box); document.body.appendChild(ov);
+
+  const logoPrev=box.querySelector("#bsLogoPreview");
+  const favPrev=box.querySelector("#bsFaviconPreview");
+  function renderLogoPreview(){
+    const saved=localStorage.getItem(LOGO_KEY);
+    logoPrev.innerHTML = saved ? `<img src="${saved}" style="width:100%;height:100%;object-fit:cover">` : "天";
+  }
+  function renderFaviconPreview(){
+    const saved=localStorage.getItem(FAVICON_KEY);
+    favPrev.innerHTML = saved ? `<img src="${saved}" style="width:100%;height:100%;object-fit:cover">` : "無";
+  }
+  renderLogoPreview(); renderFaviconPreview();
+
+  box.querySelector("#bsLogoUpload").onclick=()=>box.querySelector("#bsLogoFile").click();
+  box.querySelector("#bsLogoFile").addEventListener("change", e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      applyLogo(ev.target.result);
+      try{ localStorage.setItem(LOGO_KEY, ev.target.result); }catch(err){}
+      renderLogoPreview(); toast("Logo 已更新");
+    };
+    reader.readAsDataURL(f);
+    e.target.value="";
+  });
+  box.querySelector("#bsLogoRemove").onclick=()=>{
+    removeLogo();
+    try{ localStorage.removeItem(LOGO_KEY); }catch(e){}
+    renderLogoPreview(); toast("已恢復預設 Logo");
+  };
+
+  box.querySelector("#bsFaviconUpload").onclick=()=>box.querySelector("#bsFaviconFile").click();
+  box.querySelector("#bsFaviconFile").addEventListener("change", e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      applyFavicon(ev.target.result);
+      try{ localStorage.setItem(FAVICON_KEY, ev.target.result); }catch(err){}
+      renderFaviconPreview(); toast("Favicon 已更新");
+    };
+    reader.readAsDataURL(f);
+    e.target.value="";
+  });
+  box.querySelector("#bsFaviconRemove").onclick=()=>{
+    removeFavicon();
+    try{ localStorage.removeItem(FAVICON_KEY); }catch(e){}
+    renderFaviconPreview(); toast("已恢復預設 Favicon");
+  };
+
+  const close=()=>ov.remove();
+  bClose.onclick=close;
+  ov.addEventListener("click", e=>{ if(e.target===ov) close(); });
+}
+document.getElementById("btnBrand").addEventListener("click", showBrandSettings);
 
 document.querySelector('[name="生日"]').addEventListener('change', function(){
   if(!this.value) return;
