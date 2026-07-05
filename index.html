@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>健康諮詢表 · 天領 Talent Lead</title>
+<link rel="icon" id="faviconLink" href="images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
@@ -315,8 +316,9 @@ footer p:first-child{font-weight:600;margin-bottom:7px;color:var(--ink)}
     <div class="head-top">
       <div class="brand">
         <div class="brand-mark" id="brandMark" title="點擊更換圖片" style="cursor:pointer;overflow:hidden;position:relative">
-          <span id="brandText">天</span>
-          <img id="brandImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:11px">
+          <span id="brandText" style="display:none">天</span>
+          <img id="brandImg" src="images/logo.png" alt="天領 Talent Lead" style="display:block;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:11px"
+            onerror="this.style.display='none';var t=document.getElementById('brandText');if(t)t.style.display=''">
           <input type="file" id="brandFile" accept="image/*" style="display:none">
         </div>
         <div>
@@ -438,8 +440,12 @@ footer p:first-child{font-weight:600;margin-bottom:7px;color:var(--ink)}
 
   <footer>
     <p>🔒 隱私聲明</p>
-    <p>本表單所填寫之個人健康資料，僅供天領 Talent Lead 健康顧問進行諮詢評估使用。所有資料儲存於您的本機瀏覽器，不會自動上傳或傳送至任何伺服器。輸出之 HTML 檔案請妥善保管，避免未授權之第三方取得。本諮詢內容不構成醫療診斷，如有健康疑慮請諮詢專業醫師。</p>
-    <div class="footer-actions">
+    <p>本表單所填寫之個人健康資料，僅供天領 Talent Lead 健康顧問進行諮詢評估使用。所有資料儲存於您的本機瀏覽器；僅在您主動點選「☁️ 上傳到 Notion」時，該筆資料才會傳送至您自行部署的 Notion 上傳服務。輸出之 HTML 檔案請妥善保管，避免未授權之第三方取得。本諮詢內容不構成醫療診斷，如有健康疑慮請諮詢專業醫師。</p>
+    <div class="footer-actions" style="gap:10px;flex-wrap:wrap">
+      <button type="button" class="btn" id="btnNotion" style="background:var(--violet);color:#fff">☁️ 上傳到 Notion</button>
+      <button type="button" class="btn" id="btnExport" style="background:var(--teal);color:#fff">📋 複製諮詢資料</button>
+      <button type="button" class="btn btn-ghost" id="btnNotionCfg" title="Notion 上傳設定">⚙ Notion 設定</button>
+      <button type="button" class="btn btn-ghost" id="btnBrand" title="上傳品牌 Logo／Favicon">🖼 品牌設定</button>
       <button type="button" class="btn btn-ghost" id="btnClear">清除所有資料</button>
     </div>
   </footer>
@@ -1116,6 +1122,216 @@ document.getElementById("btnPrintGene").addEventListener("click", function(){
   toast("已開啟新分頁，請在頁面內按「列印 / 儲存 PDF」");
 });
 
+/* ---------- Consultation data (shared by copy-export & Notion upload) ---------- */
+function buildConsultData(){
+  const d=collect();
+  const g=k=>(d[k]==null?"":String(d[k])).trim();
+  const yes=k=>d[k]===true||d[k]==="true";
+  const pick=pairs=>pairs.filter(([k])=>yes(k)).map(([,v])=>v);
+
+  let totW=0,totMax=0; const sections=[];
+  SYM_SECTIONS.forEach(sec=>{
+    const secEl=document.getElementById("s-"+sec.id); if(!secEl)return;
+    const c={red:0,yellow:0,green:0}; const items=[];
+    secEl.querySelectorAll("[data-sym]").forEach(sym=>{
+      const lv=getSeverity(sym); if(!lv)return;
+      c[lv]++; totMax+=3; totW+=(lv==="red"?3:lv==="yellow"?2:1);
+      items.push({
+        name:sym.querySelector(".sym-name")?.textContent.trim()||"",
+        level:lv,
+        state:sym.querySelector(".t input:checked")?.value==="past"?"曾經":"目前",
+        deg:sym.querySelector('input[name$="_deg"]:checked')?.value||"",
+        freq:sym.querySelector('input[name$="_freq"]:checked')?.value||"",
+        dur:sym.querySelector('input[name$="_dur"]:checked')?.value||"",
+        fix:sym.querySelector('input[name$="_fix"]')?.value.trim()||"",
+        note:sym.querySelector('input[name$="_note"]')?.value.trim()||""
+      });
+    });
+    if(items.length) sections.push({title:sec.title,red:c.red,yellow:c.yellow,green:c.green,items});
+  });
+  const riskPct=totMax>0?Math.round(totW/totMax*100):0;
+  const riskLabel=riskPct>=70?"高風險":riskPct>=45?"需注意":riskPct>=25?"輕微":"良好";
+
+  const labs=[],labsText=[];
+  LAB_FIELDS.forEach((f,i)=>{
+    if(f.type==="num"){
+      const v=g(`lab_${i}_val`); if(!v)return;
+      let abnormal=false;
+      if(f.normal){ const nv=parseFloat(v); abnormal=!isNaN(nv)&&(nv<f.normal[0]||nv>f.normal[1]); }
+      labs.push({label:f.label,value:v,unit:f.unit||"",med:g(`lab_${i}_med`),abnormal});
+    }else{ const v=g(`lab_${i}`); if(v)labsText.push({label:f.label,value:v}); }
+  });
+
+  const genePairs=[];
+  for(let i=1;i<=3;i++){ const prob=g(`主要問題${i}`),impr=g(`改善方式${i}`); if(prob||impr)genePairs.push({i,prob,impr}); }
+
+  return {
+    name:g("姓名"),date:g("日期"),visit:g("初復次"),gender:g("性別"),birth:g("生日"),age:g("年紀"),job:g("職業"),
+    advisor:document.getElementById("advisorName").textContent.trim(),
+    chief:g("目前問題主述"),history:g("過去病史"),
+    chronic:pick([["f_血壓","血壓"],["f_血糖","血糖"],["f_血脂","血脂"],["f_壓力","壓力"],["f_癌症","癌症"]]),
+    chronicOther:g("慢性其他"),meds:g("用藥情況"),selfScore:g("自評健康分數"),
+    expects:pick([["期待_早期發現問題","早期發現問題"],["期待_找出不適原因","找出身體不適原因"],["期待_了解體質","了解體質"],["期待_保養方式","找出適合的保養方式"]]),
+    height:g("身高"),weight:g("體重"),fat:g("體脂"),visceral:g("內臟脂肪"),
+    riskPct,riskLabel,sections,
+    labDate:g("健檢時間"),labFreq:g("健檢頻率"),labs,labsText,
+    promote:pick([["促進_生活型態","改變生活型態"],["促進_飲食習慣","改變飲食習慣"],["促進_營養補充","使用營養補充品"]]),
+    genePairs,
+    uploadedAt:new Date().toLocaleString("zh-TW",{hour12:false})
+  };
+}
+
+/* ---------- Export consultation data (for transfer to Notion) ---------- */
+function buildExportText(){
+  const p=buildConsultData();
+  const or=v=>v||"—";
+  const MARK={red:"🔴",yellow:"🟡",green:"🟢"};
+  const L=[];
+  L.push("【天領 Talent Lead 健康諮詢資料】","");
+  L.push("■ 基本資料");
+  L.push(`姓名：${or(p.name)}`);
+  L.push(`諮詢日期：${or(p.date)}　初/復次：${or(p.visit)}`);
+  L.push(`性別：${or(p.gender)}　生日：${or(p.birth)}　年紀：${or(p.age)}`);
+  L.push(`職業：${or(p.job)}　健康顧問：${or(p.advisor)}`);
+  L.push(`目前問題主述：${or(p.chief)}`);
+  L.push(`過去及家族病史：${or(p.history)}`);
+  const chronic=[...p.chronic]; if(p.chronicOther)chronic.push(p.chronicOther);
+  L.push(`慢性指標：${chronic.length?chronic.join("、"):"無"}`);
+  L.push(`相關診斷及用藥：${or(p.meds)}`);
+  L.push(`自評健康分數：${or(p.selfScore)} / 10`);
+  L.push(`本次諮詢期待：${p.expects.length?p.expects.join("、"):"—"}`);
+  L.push(`體位：身高 ${or(p.height)} cm　體重 ${or(p.weight)} kg　體脂 ${or(p.fat)} %　內臟脂肪 ${or(p.visceral)} 級`,"");
+
+  L.push("■ 系統風險評估",`整體風險指數：${p.riskPct} / 100（${p.riskLabel}）`);
+  if(p.sections.length){
+    p.sections.forEach(s=>{
+      L.push(`● ${s.title}：🔴${s.red} 🟡${s.yellow} 🟢${s.green}`);
+      s.items.forEach(it=>{
+        const det=[it.state,it.deg&&`程度${it.deg}`,it.freq&&`${it.freq}次/週`,it.dur,it.fix&&`改善:${it.fix}`,it.note&&`備註:${it.note}`].filter(Boolean).join("，");
+        L.push(`    ${MARK[it.level]} ${it.name}（${det}）`);
+      });
+    });
+  }else L.push("（尚未填寫症狀）");
+  L.push("");
+
+  L.push("■ 健康檢查",`健檢時間：${or(p.labDate)}　頻率：${or(p.labFreq)}`);
+  p.labs.forEach(l=>L.push(`${l.label}：${l.value} ${l.unit}${l.med?`（${l.med}）`:""}${l.abnormal?" ⚠異常":""}`));
+  p.labsText.forEach(l=>L.push(`${l.label}：${l.value}`));
+  L.push("");
+
+  L.push("■ 基因建議");
+  L.push(`促進健康方式：${p.promote.length?p.promote.join("、"):"—"}`);
+  p.genePairs.forEach(x=>L.push(`${x.i}. 問題：${x.prob||"—"} → 改善：${x.impr||"—"}`));
+  return L.join("\n");
+}
+function exportFileName(ext){
+  const d=collect();
+  const name=(d["姓名"]||"未命名").toString().trim()||"未命名";
+  const date=(d["日期"]||new Date().toISOString().slice(0,10)).toString().trim();
+  return `健康諮詢_${name}_${date}.${ext}`;
+}
+function downloadText(txt){
+  const blob=new Blob([txt],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=exportFileName("txt");
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000); toast("已下載 .txt 檔");
+}
+function showExportFallback(txt){
+  const ov=document.createElement("div"); ov.className="modal-overlay show";
+  const box=document.createElement("div"); box.className="modal-box"; box.style.maxWidth="540px";
+  const ta=document.createElement("textarea");
+  ta.readOnly=true; ta.value=txt;
+  ta.style.cssText="width:100%;height:230px;font-size:.8rem;line-height:1.55;border:1px solid var(--line-strong);border-radius:10px;padding:10px";
+  box.innerHTML=`<h3>複製諮詢資料</h3><p>自動複製未成功，請手動選取下方文字複製，或下載檔案。</p>`;
+  const btns=document.createElement("div"); btns.className="modal-btns"; btns.style.marginTop="14px";
+  const bClose=document.createElement("button"); bClose.type="button"; bClose.className="btn btn-ghost"; bClose.textContent="關閉";
+  const bDl=document.createElement("button"); bDl.type="button"; bDl.className="btn"; bDl.style.cssText="background:var(--teal);color:#fff"; bDl.textContent="下載 .txt";
+  btns.append(bClose,bDl); box.append(ta,btns); ov.appendChild(box); document.body.appendChild(ov);
+  ta.focus(); ta.select();
+  const close=()=>ov.remove();
+  bClose.onclick=close; bDl.onclick=()=>downloadText(txt);
+  ov.addEventListener("click",e=>{ if(e.target===ov)close(); });
+}
+function fallbackCopy(txt){
+  const ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.top="-9999px";
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  let ok=false; try{ ok=document.execCommand("copy"); }catch(e){}
+  ta.remove();
+  if(ok) toast("✓ 諮詢資料已複製，貼給顧問即可"); else showExportFallback(txt);
+}
+document.getElementById("btnExport").addEventListener("click",()=>{
+  const txt=buildExportText();
+  if(navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(txt).then(()=>toast("✓ 諮詢資料已複製，貼給顧問即可"),()=>fallbackCopy(txt));
+  }else fallbackCopy(txt);
+});
+
+/* ---------- Upload to Notion (via Cloudflare Worker proxy) ---------- */
+const NOTION_CFG_KEY="tl_notion_cfg_v1";
+function getNotionCfg(){ try{ return JSON.parse(localStorage.getItem(NOTION_CFG_KEY))||{}; }catch(e){ return {}; } }
+function showNotionSettings(thenUpload){
+  const cfg=getNotionCfg();
+  const ov=document.createElement("div"); ov.className="modal-overlay show";
+  const box=document.createElement("div"); box.className="modal-box"; box.style.maxWidth="420px";
+  box.innerHTML=`<h3>Notion 上傳設定</h3>
+    <p>填入已部署的 Cloudflare Worker 網址與上傳金鑰（部署方式見 notion-worker/README.md）。設定只儲存在本機瀏覽器。</p>
+    <div class="field"><label>Worker 網址</label><input type="text" id="nCfgUrl" placeholder="https://xxx.workers.dev" autocomplete="off"></div>
+    <div class="field"><label>上傳金鑰（UPLOAD_KEY）</label><input type="text" id="nCfgKey" placeholder="與 Worker 設定的相同" autocomplete="off"></div>`;
+  const btns=document.createElement("div"); btns.className="modal-btns";
+  const bCancel=document.createElement("button"); bCancel.type="button"; bCancel.className="btn btn-ghost"; bCancel.textContent="取消";
+  const bSave=document.createElement("button"); bSave.type="button"; bSave.className="btn"; bSave.style.cssText="background:var(--violet);color:#fff"; bSave.textContent="儲存";
+  btns.append(bCancel,bSave); box.appendChild(btns); ov.appendChild(box); document.body.appendChild(ov);
+  box.querySelector("#nCfgUrl").value=cfg.url||"";
+  box.querySelector("#nCfgKey").value=cfg.key||"";
+  const close=()=>ov.remove();
+  bCancel.onclick=close;
+  ov.addEventListener("click",e=>{ if(e.target===ov)close(); });
+  bSave.onclick=()=>{
+    const url=box.querySelector("#nCfgUrl").value.trim().replace(/\/+$/,"");
+    const key=box.querySelector("#nCfgKey").value.trim();
+    if(!/^https:\/\/.+/.test(url)){ toast("請輸入 https:// 開頭的 Worker 網址"); return; }
+    try{ localStorage.setItem(NOTION_CFG_KEY,JSON.stringify({url,key})); }catch(e){}
+    close(); toast("已儲存 Notion 設定");
+    if(thenUpload) uploadToNotion();
+  };
+}
+function showUploadError(msg){
+  const ov=document.createElement("div"); ov.className="modal-overlay show";
+  const box=document.createElement("div"); box.className="modal-box";
+  box.innerHTML=`<h3>上傳失敗</h3><p></p>
+    <p style="font-size:.78rem;color:var(--ink-faint)">可檢查「⚙ Notion 設定」的網址與金鑰；或先用「📋 複製諮詢資料」手動備援。</p>`;
+  box.querySelector("p").textContent=msg;
+  const btns=document.createElement("div"); btns.className="modal-btns";
+  const bOk=document.createElement("button"); bOk.type="button"; bOk.className="btn btn-ghost"; bOk.textContent="關閉";
+  btns.appendChild(bOk); box.appendChild(btns); ov.appendChild(box); document.body.appendChild(ov);
+  bOk.onclick=()=>ov.remove();
+  ov.addEventListener("click",e=>{ if(e.target===ov)ov.remove(); });
+}
+async function uploadToNotion(){
+  const cfg=getNotionCfg();
+  if(!cfg.url){ showNotionSettings(true); return; }
+  const data=buildConsultData();
+  if(!data.name){ toast("請先填寫姓名再上傳"); return; }
+  const btn=document.getElementById("btnNotion");
+  const orig=btn.textContent;
+  btn.disabled=true; btn.textContent="上傳中…"; btn.style.opacity=".7";
+  try{
+    const headers={"Content-Type":"application/json"};
+    if(cfg.key) headers["X-Upload-Key"]=cfg.key;
+    const res=await fetch(cfg.url,{method:"POST",headers,body:JSON.stringify(data)});
+    const out=await res.json().catch(()=>({}));
+    if(!res.ok||!out.ok) throw new Error(out.error||`HTTP ${res.status}`);
+    toast("✓ 已上傳到 Notion");
+  }catch(e){
+    showUploadError(String(e.message||e));
+  }finally{
+    btn.disabled=false; btn.textContent=orig; btn.style.opacity="";
+  }
+}
+document.getElementById("btnNotion").addEventListener("click",uploadToNotion);
+document.getElementById("btnNotionCfg").addEventListener("click",()=>showNotionSettings(false));
+
 /* ---------- Clear modal ---------- */
 const modal=document.getElementById("modal");
 function doClear(){
@@ -1138,18 +1354,16 @@ const brandFile = document.getElementById("brandFile");
 const brandImg  = document.getElementById("brandImg");
 const brandText = document.getElementById("brandText");
 const LOGO_KEY  = "tl_brand_logo_v1";
+const DEFAULT_LOGO = "images/logo.png";
 
 function applyLogo(dataUrl){
   brandImg.src = dataUrl;
   brandImg.style.display = "block";
   brandText.style.display = "none";
 }
-function removeLogo(){
-  brandImg.src = "";
-  brandImg.style.display = "none";
-  brandText.style.display = "";
-}
-// load saved logo
+function removeLogo(){ applyLogo(DEFAULT_LOGO); }
+// load saved custom logo (falls back to images/logo.png already set in HTML;
+// onerror attribute on the <img> covers images/logo.png being missing)
 try{
   const saved = localStorage.getItem(LOGO_KEY);
   if(saved) applyLogo(saved);
@@ -1177,6 +1391,111 @@ brandMark.addEventListener("contextmenu", e=>{
     toast("已恢復預設圖示");
   }
 });
+
+/* ---------- Favicon ---------- */
+const FAVICON_KEY = "tl_brand_favicon_v1";
+function applyFavicon(dataUrl){
+  let link = document.getElementById("faviconLink");
+  if(!link){
+    link = document.createElement("link");
+    link.id = "faviconLink";
+    link.rel = "icon";
+    document.head.appendChild(link);
+  }
+  link.href = dataUrl;
+}
+function removeFavicon(){ applyFavicon(DEFAULT_LOGO); }
+// load saved custom favicon (falls back to images/logo.png already set in <head>)
+try{
+  const savedFav = localStorage.getItem(FAVICON_KEY);
+  if(savedFav) applyFavicon(savedFav);
+}catch(e){}
+
+/* ---------- Brand settings modal (Logo + Favicon) ---------- */
+function showBrandSettings(){
+  const ov=document.createElement("div"); ov.className="modal-overlay show";
+  const box=document.createElement("div"); box.className="modal-box"; box.style.maxWidth="440px";
+  box.innerHTML=`<h3>品牌設定</h3>
+    <p>Logo 顯示於表單左上角；Favicon 顯示於瀏覽器分頁圖示。建議使用正方形圖片，僅儲存於本機瀏覽器。</p>
+    <div style="display:flex;align-items:center;gap:14px;margin:16px 0">
+      <div id="bsLogoPreview" style="width:46px;height:46px;border-radius:11px;background:linear-gradient(140deg,var(--teal),var(--teal-deep));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;overflow:hidden;flex:0 0 auto"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.86rem;font-weight:600;margin-bottom:7px">Logo（表單標誌）</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-ghost" id="bsLogoUpload" style="padding:8px 14px;font-size:.8rem;min-height:auto">上傳圖片</button>
+          <button type="button" class="btn btn-ghost" id="bsLogoRemove" style="padding:8px 14px;font-size:.8rem;min-height:auto">移除</button>
+        </div>
+        <input type="file" id="bsLogoFile" accept="image/*" style="display:none">
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin:16px 0;padding-top:16px;border-top:1px solid var(--line)">
+      <div id="bsFaviconPreview" style="width:32px;height:32px;border-radius:7px;background:var(--bg);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;font-size:.66rem;color:var(--ink-faint)"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.86rem;font-weight:600;margin-bottom:7px">Favicon（瀏覽器分頁圖示）</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-ghost" id="bsFaviconUpload" style="padding:8px 14px;font-size:.8rem;min-height:auto">上傳圖片</button>
+          <button type="button" class="btn btn-ghost" id="bsFaviconRemove" style="padding:8px 14px;font-size:.8rem;min-height:auto">移除</button>
+        </div>
+        <input type="file" id="bsFaviconFile" accept="image/*" style="display:none">
+      </div>
+    </div>`;
+  const btns=document.createElement("div"); btns.className="modal-btns";
+  const bClose=document.createElement("button"); bClose.type="button"; bClose.className="btn"; bClose.style.cssText="background:var(--teal);color:#fff"; bClose.textContent="完成";
+  btns.appendChild(bClose); box.appendChild(btns); ov.appendChild(box); document.body.appendChild(ov);
+
+  const logoPrev=box.querySelector("#bsLogoPreview");
+  const favPrev=box.querySelector("#bsFaviconPreview");
+  function renderLogoPreview(){
+    const saved=localStorage.getItem(LOGO_KEY);
+    logoPrev.innerHTML = `<img src="${saved||DEFAULT_LOGO}" style="width:100%;height:100%;object-fit:cover">`;
+  }
+  function renderFaviconPreview(){
+    const saved=localStorage.getItem(FAVICON_KEY);
+    favPrev.innerHTML = `<img src="${saved||DEFAULT_LOGO}" style="width:100%;height:100%;object-fit:cover">`;
+  }
+  renderLogoPreview(); renderFaviconPreview();
+
+  box.querySelector("#bsLogoUpload").onclick=()=>box.querySelector("#bsLogoFile").click();
+  box.querySelector("#bsLogoFile").addEventListener("change", e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      applyLogo(ev.target.result);
+      try{ localStorage.setItem(LOGO_KEY, ev.target.result); }catch(err){}
+      renderLogoPreview(); toast("Logo 已更新");
+    };
+    reader.readAsDataURL(f);
+    e.target.value="";
+  });
+  box.querySelector("#bsLogoRemove").onclick=()=>{
+    removeLogo();
+    try{ localStorage.removeItem(LOGO_KEY); }catch(e){}
+    renderLogoPreview(); toast("已恢復預設 Logo");
+  };
+
+  box.querySelector("#bsFaviconUpload").onclick=()=>box.querySelector("#bsFaviconFile").click();
+  box.querySelector("#bsFaviconFile").addEventListener("change", e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      applyFavicon(ev.target.result);
+      try{ localStorage.setItem(FAVICON_KEY, ev.target.result); }catch(err){}
+      renderFaviconPreview(); toast("Favicon 已更新");
+    };
+    reader.readAsDataURL(f);
+    e.target.value="";
+  });
+  box.querySelector("#bsFaviconRemove").onclick=()=>{
+    removeFavicon();
+    try{ localStorage.removeItem(FAVICON_KEY); }catch(e){}
+    renderFaviconPreview(); toast("已恢復預設 Favicon");
+  };
+
+  const close=()=>ov.remove();
+  bClose.onclick=close;
+  ov.addEventListener("click", e=>{ if(e.target===ov) close(); });
+}
+document.getElementById("btnBrand").addEventListener("click", showBrandSettings);
 
 document.querySelector('[name="生日"]').addEventListener('change', function(){
   if(!this.value) return;

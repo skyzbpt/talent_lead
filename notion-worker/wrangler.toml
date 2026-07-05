@@ -1,0 +1,12 @@
+name = "talent-lead-notion"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# 密鑰請勿寫在這裡，用以下指令設定：
+#   npx wrangler secret put NOTION_TOKEN
+#   npx wrangler secret put UPLOAD_KEY
+#
+# 目標資料庫預設寫在 worker.js 的 DEFAULT_DATABASE_ID，
+# 要改用其他資料庫時才需要取消下面註解：
+# [vars]
+# DATABASE_ID = "8419bf62-ec81-48b4-8515-86919f543b4a"
