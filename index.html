@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>健康諮詢表 · 天領 Talent Lead</title>
-<link rel="icon" id="faviconLink" href="images/logo.png">
+<link rel="icon" id="faviconLink" href="images/logo.jpeg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
@@ -317,7 +317,7 @@ footer p:first-child{font-weight:600;margin-bottom:7px;color:var(--ink)}
       <div class="brand">
         <div class="brand-mark" id="brandMark" title="點擊更換圖片" style="cursor:pointer;overflow:hidden;position:relative">
           <span id="brandText" style="display:none">天</span>
-          <img id="brandImg" src="images/logo.png" alt="天領 Talent Lead" style="display:block;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:11px"
+          <img id="brandImg" src="images/logo.jpeg" alt="天領 Talent Lead" style="display:block;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:11px"
             onerror="this.style.display='none';var t=document.getElementById('brandText');if(t)t.style.display=''">
           <input type="file" id="brandFile" accept="image/*" style="display:none">
         </div>
@@ -1354,7 +1354,7 @@ const brandFile = document.getElementById("brandFile");
 const brandImg  = document.getElementById("brandImg");
 const brandText = document.getElementById("brandText");
 const LOGO_KEY  = "tl_brand_logo_v1";
-const DEFAULT_LOGO = "images/logo.png";
+const DEFAULT_LOGO = "images/logo.jpeg";
 
 function applyLogo(dataUrl){
   brandImg.src = dataUrl;
@@ -1362,8 +1362,8 @@ function applyLogo(dataUrl){
   brandText.style.display = "none";
 }
 function removeLogo(){ applyLogo(DEFAULT_LOGO); }
-// load saved custom logo (falls back to images/logo.png already set in HTML;
-// onerror attribute on the <img> covers images/logo.png being missing)
+// load saved custom logo (falls back to images/logo.jpeg already set in HTML;
+// onerror attribute on the <img> covers images/logo.jpeg being missing)
 try{
   const saved = localStorage.getItem(LOGO_KEY);
   if(saved) applyLogo(saved);
@@ -1405,7 +1405,7 @@ function applyFavicon(dataUrl){
   link.href = dataUrl;
 }
 function removeFavicon(){ applyFavicon(DEFAULT_LOGO); }
-// load saved custom favicon (falls back to images/logo.png already set in <head>)
+// load saved custom favicon (falls back to images/logo.jpeg already set in <head>)
 try{
   const savedFav = localStorage.getItem(FAVICON_KEY);
   if(savedFav) applyFavicon(savedFav);
