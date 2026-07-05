@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>健康諮詢表 · 天領 Talent Lead</title>
+<link rel="icon" id="faviconLink" href="images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
@@ -315,8 +316,9 @@ footer p:first-child{font-weight:600;margin-bottom:7px;color:var(--ink)}
     <div class="head-top">
       <div class="brand">
         <div class="brand-mark" id="brandMark" title="點擊更換圖片" style="cursor:pointer;overflow:hidden;position:relative">
-          <span id="brandText">天</span>
-          <img id="brandImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:11px">
+          <span id="brandText" style="display:none">天</span>
+          <img id="brandImg" src="images/logo.png" alt="天領 Talent Lead" style="display:block;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:11px"
+            onerror="this.style.display='none';var t=document.getElementById('brandText');if(t)t.style.display=''">
           <input type="file" id="brandFile" accept="image/*" style="display:none">
         </div>
         <div>
@@ -1352,18 +1354,16 @@ const brandFile = document.getElementById("brandFile");
 const brandImg  = document.getElementById("brandImg");
 const brandText = document.getElementById("brandText");
 const LOGO_KEY  = "tl_brand_logo_v1";
+const DEFAULT_LOGO = "images/logo.png";
 
 function applyLogo(dataUrl){
   brandImg.src = dataUrl;
   brandImg.style.display = "block";
   brandText.style.display = "none";
 }
-function removeLogo(){
-  brandImg.src = "";
-  brandImg.style.display = "none";
-  brandText.style.display = "";
-}
-// load saved logo
+function removeLogo(){ applyLogo(DEFAULT_LOGO); }
+// load saved custom logo (falls back to images/logo.png already set in HTML;
+// onerror attribute on the <img> covers images/logo.png being missing)
 try{
   const saved = localStorage.getItem(LOGO_KEY);
   if(saved) applyLogo(saved);
@@ -1404,9 +1404,8 @@ function applyFavicon(dataUrl){
   }
   link.href = dataUrl;
 }
-function removeFavicon(){
-  document.getElementById("faviconLink")?.remove();
-}
+function removeFavicon(){ applyFavicon(DEFAULT_LOGO); }
+// load saved custom favicon (falls back to images/logo.png already set in <head>)
 try{
   const savedFav = localStorage.getItem(FAVICON_KEY);
   if(savedFav) applyFavicon(savedFav);
@@ -1448,11 +1447,11 @@ function showBrandSettings(){
   const favPrev=box.querySelector("#bsFaviconPreview");
   function renderLogoPreview(){
     const saved=localStorage.getItem(LOGO_KEY);
-    logoPrev.innerHTML = saved ? `<img src="${saved}" style="width:100%;height:100%;object-fit:cover">` : "天";
+    logoPrev.innerHTML = `<img src="${saved||DEFAULT_LOGO}" style="width:100%;height:100%;object-fit:cover">`;
   }
   function renderFaviconPreview(){
     const saved=localStorage.getItem(FAVICON_KEY);
-    favPrev.innerHTML = saved ? `<img src="${saved}" style="width:100%;height:100%;object-fit:cover">` : "無";
+    favPrev.innerHTML = `<img src="${saved||DEFAULT_LOGO}" style="width:100%;height:100%;object-fit:cover">`;
   }
   renderLogoPreview(); renderFaviconPreview();
 
