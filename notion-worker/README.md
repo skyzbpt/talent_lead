@@ -1,6 +1,6 @@
 # 健康諮詢表 → Notion 自動上傳（Cloudflare Worker 代理）
 
-讓表單頁尾的「☁️ 上傳到 Notion」按鈕運作的後端。按一下，整筆諮詢
+讓表單「完成與輸出」區的「上傳到 Notion」按鈕運作的後端。按一下，整筆諮詢
 （基本資料、症狀評估、健檢數值、基因建議）就自動寫入 Notion 資料庫
 「天領 Talent Lead｜健康諮詢紀錄」，一筆諮詢一頁。
 
@@ -48,9 +48,9 @@ Worker 頁面 → **Settings → Variables and Secrets** → 新增：
 
 ### 步驟 5｜表單端設定（每台填表裝置做一次）
 
-1. 開啟健康諮詢表 → 頁尾 **「⚙ Notion 設定」**
+1. 開啟健康諮詢表 → 最下方 **「設定」**（或目錄選單的「設定」）→「Notion 上傳」
 2. 填入 Worker 網址與 `UPLOAD_KEY` → 儲存（只存在該裝置的瀏覽器）
-3. 填一筆測試資料（**姓名必填**）→ 按 **「☁️ 上傳到 Notion」**
+3. 填一筆測試資料（**姓名必填**）→ 按 **「上傳到 Notion」**
 4. 到 Notion 資料庫看到新紀錄 → 完成 🎉
 
 ---
@@ -59,13 +59,19 @@ Worker 頁面 → **Settings → Variables and Secrets** → 新增：
 
 | 症狀 | 原因 / 解法 |
 |------|-------------|
-| 上傳金鑰錯誤（401） | 表單 ⚙ 設定的金鑰與 Worker 的 `UPLOAD_KEY` 不一致 |
+| 上傳金鑰錯誤（401） | 表單「設定」裡的金鑰與 Worker 的 `UPLOAD_KEY` 不一致 |
 | `Could not find database` | 步驟 2 沒把資料庫連結給整合；或 `DATABASE_ID` 打錯 |
 | 尚未設定 NOTION_TOKEN（500） | 步驟 4 沒新增 Secret |
 | `API token is invalid` | `NOTION_TOKEN` 貼錯或已撤銷，回步驟 1 重新產生 |
 | Failed to fetch | Worker 網址打錯（需 `https://` 開頭）或裝置沒有網路 |
 
-上傳失敗時，隨時可改用表單的「📋 複製諮詢資料」按鈕手動備援。
+上傳失敗時，隨時可改用表單的「複製文字」按鈕手動備援。
+
+## 更新 Worker（選用）
+
+表單新版會多送出 BMI 與生活指標（睡眠時間、壓力指數、活力指數）。
+把最新的 `worker.js` 重新貼上並 **Deploy**，Notion 頁面內文就會多一段「體位與生活指標」。
+這些資料只寫進頁面內文，**資料庫不需要新增欄位**；沒有更新 Worker 也能照常上傳。
 
 ## 進階：用 wrangler CLI 部署
 
