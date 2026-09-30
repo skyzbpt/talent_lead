@@ -5,7 +5,7 @@
  *
  * 環境變數（Worker → Settings → Variables and Secrets）：
  *   NOTION_TOKEN  (Secret)      Notion 內部整合密鑰（ntn_ / secret_ 開頭）
- *   UPLOAD_KEY    (Secret)      自訂上傳金鑰，需與表單「⚙ Notion 設定」填的一致
+ *   UPLOAD_KEY    (Secret)      自訂上傳金鑰，需與表單「設定 → Notion 上傳」填的一致
  *   DATABASE_ID   (Text, 選填)  目標資料庫 ID，預設為健康諮詢紀錄資料庫
  *
  * 部署與設定步驟詳見同資料夾 README.md
@@ -105,6 +105,16 @@ function buildChildren(p) {
   b.push({ callout: { icon: { type: "emoji", emoji: "📋" },
     rich_text: rt(`由健康諮詢表上傳${p.uploadedAt ? " · " + p.uploadedAt : ""}`) } });
 
+  // 只寫進頁面內文（不寫欄位），資料庫不需要新增欄位
+  const m = p.metrics || {};
+  const vitals = [
+    p.bmi && `BMI：${p.bmi}${p.bmiLabel ? `（${p.bmiLabel}）` : ""}`,
+    m.sleep && `睡眠時間：${m.sleep} 小時`,
+    m.stress && `壓力指數：${m.stress} / 10`,
+    m.vitality && `活力指數：${m.vitality} / 10`,
+  ].filter(Boolean);
+  if (vitals.length) { b.push(h2("體位與生活指標")); vitals.forEach(t => b.push(bullet(t))); }
+
   const secs = (p.sections || []).filter(s => (s.items || []).length);
   if (secs.length) {
     b.push(h2("各系統症狀評估"));
@@ -156,7 +166,7 @@ export default {
     if (!env.NOTION_TOKEN)
       return json({ error: "Worker 尚未設定 NOTION_TOKEN（Settings → Variables and Secrets）" }, 500);
     if (env.UPLOAD_KEY && request.headers.get("X-Upload-Key") !== env.UPLOAD_KEY)
-      return json({ error: "上傳金鑰錯誤，請檢查表單的「⚙ Notion 設定」" }, 401);
+      return json({ error: "上傳金鑰錯誤，請檢查表單「設定 → Notion 上傳」的金鑰" }, 401);
 
     let p;
     try { p = await request.json(); } catch { return json({ error: "JSON 格式錯誤" }, 400); }
