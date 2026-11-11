@@ -222,7 +222,6 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;overflow:hidden}
 .sym-top{display:flex;align-items:center;gap:10px}
 .sym-name{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;column-gap:9px;background:none;border:0;
   padding:7px 0;text-align:left;color:var(--ink);border-radius:8px}
-.sym-name:disabled{cursor:default;color:var(--ink);opacity:1}
 .sym-text{font-size:.95rem;font-weight:500;line-height:1.45;overflow-wrap:anywhere}
 .sym.has-state .sym-text{font-weight:700}
 .sev{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--line);transform:scale(.7)}
@@ -320,6 +319,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;overflow:hidden}
 .actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .status-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:12px;font-size:.78rem;color:var(--ink-3)}
 .status-line.ok{color:var(--good-ink)}
+.status-line.warn{color:var(--warn-ink)}
 .sub-actions{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .save-state{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;color:var(--ink-3)}
 .save-state.err{color:var(--bad-ink)}
@@ -366,6 +366,8 @@ code{font-size:.85em;background:var(--sky-50);padding:1px 5px;border-radius:5px}
   background:#17344f;color:#fff;font-size:.86rem;padding:11px 20px;border-radius:12px;box-shadow:var(--shadow-lg);
   opacity:0;pointer-events:none;transition:.22s;max-width:calc(100vw - 32px);text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.show.act{pointer-events:auto;display:flex;align-items:center;gap:14px;text-align:left}
+.toast-btn{flex:0 0 auto;border:0;background:none;color:#8fd0ff;font-weight:700;padding:6px 4px;min-height:32px;border-radius:8px}
 
 /* ---------- 報告預覽 ---------- */
 .report-view{position:fixed;inset:0;z-index:55;background:#e6edf4;display:flex;flex-direction:column}
@@ -793,7 +795,7 @@ function symRowHTML(sec,raw,idx){
     <span class="with-unit w-num"><input type="number" id="${base}val" inputmode="decimal" step="0.5" min="0" name="${base}val"><span class="unit">${esc(it.unit||"")}</span></span></div>`;
   return `<div class="sym" data-sym>
     <div class="sym-top">
-      <button type="button" class="sym-name" data-symopen disabled aria-expanded="false">
+      <button type="button" class="sym-name" data-symopen aria-expanded="false">
         <i class="sev" data-sev></i><span class="sym-text">${esc(it.n)}</span><span class="sym-sum" data-sum hidden></span>
       </button>
       <div class="seg" role="group" aria-label="${esc(it.n)}">
@@ -816,7 +818,7 @@ function symRowHTML(sec,raw,idx){
     </div>
   </div>`;
 }
-const LEGEND=`<p class="sec-hint">點「目前」或「曾經」記錄症狀，再補充程度與頻率，會自動標示顏色：
+const LEGEND=`<p class="sec-hint">點症狀名稱或「目前」／「曾經」記錄症狀，再補充程度與頻率，會自動標示顏色：
   <span class="legend lv-red"><i class="dot"></i>需優先</span><span class="legend lv-yellow"><i class="dot"></i>需留意</span>
   <span class="legend lv-green"><i class="dot"></i>輕微</span><span class="legend lv-green"><i class="dot ring"></i>曾經</span></p>`;
 $("#symSections").outerHTML=SYM_SECTIONS.map(sec=>{
@@ -935,7 +937,6 @@ function refreshSym(sym){
   const btn=$("[data-symopen]",sym), sev=$("[data-sev]",sym), sum=$("[data-sum]",sym);
   sym.classList.toggle("has-state",!!state);
   sym.classList.toggle("open",open);
-  btn.disabled=!state;
   btn.setAttribute("aria-expanded",String(open));
   sev.className="sev"+(lv?" lv-"+lv:"")+(state==="past"?" past":"");
   sev.title=lv?LV_TEXT[lv]:"";
@@ -954,12 +955,22 @@ function setSymOpen(sym,open){
 }
 form.addEventListener("click",e=>{
   const sym=e.target.closest("[data-sym]"); if(!sym) return;
-  if(e.target.closest("[data-symopen]")) setSymOpen(sym,!sym.classList.contains("open"));
+  if(e.target.closest("[data-symopen]")){
+    if(pickVal(sym,"state")) setSymOpen(sym,!sym.classList.contains("open"));
+    else{ // 還沒記錄時，點症狀名稱等同點「目前」
+      const now=sym.querySelector('input[name$="_state"][value="now"]');
+      now.checked=true; now.dispatchEvent(new Event("change",{bubbles:true}));
+    }
+  }
   else if(e.target.closest("[data-symdone]")){ setSymOpen(sym,false); $("[data-symopen]",sym).focus({preventScroll:true}); }
   else if(e.target.closest("[data-symclear]")){
+    const snap=$$("input",sym).map(i=>[i,i.type==="radio"?i.checked:i.value]);
     $$("input",sym).forEach(i=>{ if(i.type==="radio"){ i.checked=false; i.dataset.was="0"; } else i.value=""; });
-    sym.classList.remove("open"); refreshSym(sym); scheduleSave(); scheduleRefresh();
-    toast("已清除這一項");
+    sym.classList.remove("open"); refreshSym(sym); markEdited(); scheduleSave(); scheduleRefresh();
+    toast("已清除這一項",{label:"復原",onClick:()=>{
+      snap.forEach(([i,v])=>{ if(i.type==="radio"){ i.checked=v; i.dataset.was=v?"1":"0"; } else i.value=v; });
+      refreshSym(sym); scheduleSave(); scheduleRefresh();
+    }});
   }
 });
 
@@ -1014,7 +1025,7 @@ function computeRisk(){
 const symName=sym=>$(".sym-text",sym).textContent;
 const LV_W={red:3,yellow:2,green:1};
 function topSystems(r){
-  const sorted=[...r.sections].sort((a,b)=>b.score-a.score||b.c.red-a.c.red);
+  const sorted=[...r.sections].sort((a,b)=>b.score-a.score||b.c.red-a.c.red||b.items.length-a.items.length);
   const pri=sorted.filter(s=>s.c.red+s.c.yellow>0);
   return (pri.length?pri:sorted).slice(0,3);
 }
@@ -1059,7 +1070,7 @@ $("#btnAutofill").addEventListener("click",()=>{
   const todo=top.filter(s=>!used.some(u=>u.startsWith(s.title+"："))).slice(0,empties.length);
   if(!todo.length){ toast("高風險系統都已經在清單中"); return; }
   todo.forEach((s,k)=>{ empties[k].value=`${s.title}：${topSymptoms(s).join("、")}`; grow(empties[k]); });
-  scheduleSave(); scheduleRefresh();
+  markEdited(); scheduleSave(); scheduleRefresh();
   toast(`已帶入 ${todo.length} 項，可再自行修改`);
 });
 
@@ -1122,7 +1133,7 @@ form.addEventListener("change",e=>{
     if(now.getMonth()<b.getMonth()||(now.getMonth()===b.getMonth()&&now.getDate()<b.getDate())) age--;
     if(age>=0&&age<130) F("年紀").value=age;
   }
-  scheduleRefresh(); scheduleSave();
+  markEdited(); scheduleRefresh(); scheduleSave();
 });
 form.addEventListener("input",e=>{
   const t=e.target;
@@ -1130,7 +1141,7 @@ form.addEventListener("input",e=>{
   if(t.classList.contains("invalid")&&t.value.trim()) t.classList.remove("invalid");
   const sym=t.closest("[data-sym]"); if(sym) refreshSym(sym);
   const m=/^lab_(\d+)_val$/.exec(t.name||""); if(m) refreshLab(+m[1]);
-  scheduleRefresh(); scheduleSave();
+  markEdited(); scheduleRefresh(); scheduleSave();
 });
 // 滑鼠滾輪不會誤改數字欄位
 document.addEventListener("wheel",()=>{ const a=document.activeElement; if(a&&a.type==="number") a.blur(); },{passive:true});
@@ -1147,13 +1158,19 @@ function collect(){
   });
   return d;
 }
-function save(){
-  clearTimeout(debounceTimers.save); dirty=false;
+function snapshot(){
   const d=collect();
   d.__advisorName=advisorName();
   d.__reviewed=[...reviewed];
   if(uploadInfo) d.__uploaded=uploadInfo;
   d.__savedAt=Date.now();
+  return d;
+}
+// 上傳後又修改內容時，提醒 Notion 上的是舊版
+function markEdited(){ if(uploadInfo&&!uploadInfo.edited){ uploadInfo.edited=true; renderUploadState(); } }
+function save(){
+  clearTimeout(debounceTimers.save); dirty=false;
+  const d=snapshot();
   saveFailed=!store.set(KEY,JSON.stringify(d));
   if(!saveFailed) lastSaved=d.__savedAt;
   renderSaveState();
@@ -1191,10 +1208,11 @@ function renderSaveState(){
 }
 function renderUploadState(){
   const el=$("#uploadState");
-  el.classList.toggle("ok",!!uploadInfo);
+  el.classList.toggle("ok",!!uploadInfo&&!uploadInfo.edited);
+  el.classList.toggle("warn",!!uploadInfo&&!!uploadInfo.edited);
   if(!uploadInfo){ el.innerHTML=`${icon("upload",14)}這筆資料尚未上傳到 Notion`; return; }
   const link=/^https:\/\//.test(uploadInfo.url||"")?` · <a href="${esc(uploadInfo.url)}" target="_blank" rel="noopener">開啟 Notion 頁面</a>`:"";
-  el.innerHTML=`${icon("check",14)}已上傳到 Notion · ${fmtTime(uploadInfo.at)}${link}`;
+  el.innerHTML=`${icon("check",14)}已上傳到 Notion · ${fmtTime(uploadInfo.at)}${uploadInfo.edited?" · 之後有修改，尚未重新上傳":""}${link}`;
 }
 // 離開頁面前，只在有尚未寫入的變更時才存（避免舊分頁覆蓋其他分頁的新資料）
 const flushSave=()=>{ if(dirty) save(); };
@@ -1206,6 +1224,11 @@ const advisorName=()=>advisorEl.textContent.trim();
 function setAdvisor(name){ advisorEl.textContent=name||"sky"; store.set(ADVISOR_KEY,advisorEl.textContent); }
 advisorEl.addEventListener("input",()=>debounce("advisor",()=>{ store.set(ADVISOR_KEY,advisorName()); save(); },500));
 advisorEl.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); advisorEl.blur(); } });
+advisorEl.addEventListener("paste",e=>{ // 只貼純文字，避免帶入格式
+  e.preventDefault();
+  const t=(e.clipboardData?.getData("text/plain")||"").replace(/\s+/g," ").trim().slice(0,30);
+  if(t) document.execCommand("insertText",false,t);
+});
 advisorEl.addEventListener("blur",()=>{ if(!advisorName()) setAdvisor("sky"); });
 
 /* ================= 導覽：目錄、目前位置、回到頂部 ================= */
@@ -1249,9 +1272,16 @@ window.addEventListener("scroll",()=>{
 fab.addEventListener("click",()=>window.scrollTo({top:0,behavior:scrollBehavior()}));
 
 /* ================= 提示訊息與對話框 ================= */
-function toast(msg){
-  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
-  debounce("toast",()=>t.classList.remove("show"),2600);
+function toast(msg,action){
+  const t=$("#toast"); t.textContent="";
+  const m=document.createElement("span"); m.textContent=msg; t.appendChild(m);
+  if(action){
+    const b=document.createElement("button"); b.type="button"; b.className="toast-btn"; b.textContent=action.label;
+    b.addEventListener("click",()=>{ t.classList.remove("show","act"); action.onClick(); });
+    t.appendChild(b);
+  }
+  t.classList.toggle("act",!!action); t.classList.add("show");
+  debounce("toast",()=>t.classList.remove("show","act"),action?8000:2600);
 }
 const modalStack=[];
 const FOCUSABLE='button:not([disabled]),[href],input:not([disabled]):not([type=file]),select,textarea,[tabindex]:not([tabindex="-1"])';
@@ -1472,7 +1502,9 @@ function renderReport(){
 
   <footer class="rp-foot"><span>健康顧問：${val(p.advisor)}　·　製表：${esc(fmtTime(Date.now()))}</span><span>天領 Talent Lead · 本報告僅供健康諮詢參考，不構成醫療診斷</span></footer>`;
 }
+let reportOpener=null;
 function openReport(){
+  reportOpener=document.activeElement;
   renderReport();
   reportView.hidden=false; html.classList.add("no-scroll");
   $(".rv-scroll",reportView).scrollTop=0;
@@ -1481,6 +1513,8 @@ function openReport(){
 function closeReport(){
   reportView.hidden=true;
   if(!modalStack.length) html.classList.remove("no-scroll");
+  if(reportOpener&&document.contains(reportOpener)) reportOpener.focus({preventScroll:true});
+  reportOpener=null;
 }
 $("#rvClose").addEventListener("click",closeReport);
 $("#rvPrint").addEventListener("click",()=>window.print());
@@ -1512,7 +1546,7 @@ async function uploadToNotion(){
   const data=buildConsultData();
   if(!data.name){ toast("請先填寫個案姓名"); focusField("姓名"); return; }
   if(uploadInfo&&!await confirmModal({title:"這筆資料已經上傳過",ok:"仍要上傳",
-    msg:`上次上傳時間：${fmtTime(uploadInfo.at)}。<br>再上傳一次，Notion 會多一筆新的紀錄。`})) return;
+    msg:`上次上傳時間：${fmtTime(uploadInfo.at)}${uploadInfo.edited?"，之後內容有修改":""}。<br>再上傳一次，Notion 會多一筆新的紀錄（舊的那筆不會被更新）。`})) return;
   setUploading(true);
   const ctrl=new AbortController(), timer=setTimeout(()=>ctrl.abort(),25000);
   try{
@@ -1640,6 +1674,8 @@ $("#brandBtn").addEventListener("click",()=>openSettings({focus:"brand"}));
 
 /* ================= 開始新諮詢 ================= */
 function doClear(){
+  const snap=snapshot(), wasOpen=SECS.map(s=>!s.el.classList.contains("collapsed"));
+  clearTimeout(debounceTimers.save); dirty=false;
   store.del(KEY);
   form.reset();
   reviewed.clear(); uploadInfo=null; lastSaved=null;
@@ -1650,12 +1686,18 @@ function doClear(){
   SECS.forEach((s,i)=>setOpen(s,i===0));
   afterApply();
   window.scrollTo({top:0,behavior:scrollBehavior()});
-  toast("已清除，可以開始新的諮詢");
+  toast("已清除，可以開始新的諮詢",{label:"復原",onClick:()=>{
+    form.reset(); apply(snap);
+    SECS.forEach((s,i)=>setOpen(s,wasOpen[i]));
+    afterApply(); save();
+    toast("已復原剛才的資料");
+  }});
 }
 async function newConsult(){
-  const warn=uploadInfo?"":`<br><b style="color:var(--bad-ink)">這筆資料還沒有上傳到 Notion</b>，建議先上傳或複製備份。`;
+  const warn=!uploadInfo?`<br><b style="color:var(--bad-ink)">這筆資料還沒有上傳到 Notion</b>，建議先上傳或複製備份。`
+    :uploadInfo.edited?`<br><b style="color:var(--bad-ink)">上傳後修改的內容還沒有重新上傳</b>，建議先上傳或複製備份。`:"";
   if(await confirmModal({title:"開始新的諮詢？",ok:"清除並開始",danger:true,
-    msg:`目前表單的內容會全部清除，無法復原。${warn}`})) doClear();
+    msg:`目前表單的內容會全部清除。${warn}`})) doClear();
 }
 
 /* ================= 動作按鈕（目錄與完成區共用） ================= */
