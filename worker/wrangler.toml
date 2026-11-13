@@ -1,0 +1,12 @@
+name = "talent-lead-api"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "talent-lead-db"
+database_id = "9278bc12-7a5b-4542-a434-ce582b6ef0ee"
+migrations_dir = "migrations"
+
+# 密鑰請勿寫在這裡，用以下指令設定：
+#   npx wrangler secret put API_KEY
