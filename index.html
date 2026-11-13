@@ -85,6 +85,15 @@ svg{flex:0 0 auto}
 .d-meta{font-size:.72rem;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .drawer-foot{border-top:1px solid var(--line);padding:12px 16px calc(14px + env(safe-area-inset-bottom));display:grid;gap:8px}
 .drawer-foot .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hist-search{margin-bottom:10px}
+.hist-list{display:grid;gap:8px;min-height:60px}
+.hist-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.hist-main{flex:1;min-width:0;background:none;border:0;padding:0;text-align:left;border-radius:8px}
+.hist-main b{display:block;font-size:.95rem;color:var(--ink);overflow-wrap:anywhere}
+.hist-main small{display:block;font-size:.74rem;color:var(--ink-3);line-height:1.5}
+.hist-main:hover b{color:var(--sky-700)}
+.hist-empty{padding:18px 4px;text-align:center;color:var(--ink-3);font-size:.86rem}
+.ok-text{color:var(--good-ink);font-size:.8rem;margin:6px 0 0}
 
 /* 區塊編號（目錄與區塊標題共用） */
 .num{flex:0 0 auto;width:32px;height:32px;border-radius:10px;background:var(--sky-100);color:var(--sky-700);
@@ -493,9 +502,10 @@ code{font-size:.85em;background:var(--sky-50);padding:1px 5px;border-radius:5px}
   <div class="drawer-foot">
     <button type="button" class="btn primary" data-action="report" data-icon="file">預覽報告／列印</button>
     <div class="row">
-      <button type="button" class="btn soft" data-action="notion" data-icon="upload">上傳 Notion</button>
-      <button type="button" class="btn ghost" data-action="settings" data-icon="settings">設定</button>
+      <button type="button" class="btn soft" data-action="cloud" data-icon="upload">儲存到雲端</button>
+      <button type="button" class="btn ghost" data-action="history" data-icon="history">歷史紀錄</button>
     </div>
+    <button type="button" class="btn ghost" data-action="settings" data-icon="settings">設定</button>
     <span class="save-state" data-savestate></span>
   </div>
 </aside>
@@ -625,7 +635,7 @@ code{font-size:.85em;background:var(--sky-50);padding:1px 5px;border-radius:5px}
 
   <section class="finish" id="finish" aria-labelledby="finishTitle">
     <h2 id="finishTitle">完成與輸出</h2>
-    <p>資料會自動儲存在這台裝置。填寫完成後，可以預覽報告給個案看、上傳到 Notion，或複製成文字。</p>
+    <p>資料會自動儲存在這台裝置。填寫完成後，可以預覽報告給個案看、儲存到雲端資料庫，或複製成文字。</p>
     <div class="stats">
       <div class="stat"><b id="stDone">0/10</b><span>已完成區塊</span></div>
       <div class="stat"><b id="stSyms">0</b><span>已記錄症狀</span></div>
@@ -633,13 +643,14 @@ code{font-size:.85em;background:var(--sky-50);padding:1px 5px;border-radius:5px}
     </div>
     <div class="actions">
       <button type="button" class="btn primary" data-action="report" data-icon="file">預覽報告／列印</button>
-      <button type="button" class="btn soft" data-action="notion" data-icon="upload">上傳到 Notion</button>
+      <button type="button" class="btn soft" data-action="cloud" data-icon="upload">儲存到雲端</button>
       <button type="button" class="btn ghost" data-action="copy" data-icon="copy">複製文字</button>
     </div>
-    <div class="status-line" id="uploadState"></div>
+    <div class="status-line" id="syncState"></div>
     <div class="sub-actions">
       <span class="save-state" data-savestate></span>
       <span>
+        <button type="button" class="btn link" data-action="history" data-icon="history">歷史紀錄</button>
         <button type="button" class="btn link" data-action="settings" data-icon="settings">設定</button>
         <button type="button" class="btn link danger-text" data-action="new" data-icon="plus">開始新諮詢</button>
       </span>
@@ -648,7 +659,7 @@ code{font-size:.85em;background:var(--sky-50);padding:1px 5px;border-radius:5px}
 
   <footer class="privacy">
     <b data-icon="lock">隱私聲明</b>
-    <p>本表單所填寫之個人健康資料，僅供天領 Talent Lead 健康顧問進行諮詢評估使用。所有資料儲存於本機瀏覽器；僅在您主動點選「上傳到 Notion」時，該筆資料才會傳送至您自行部署的 Notion 上傳服務。列印或輸出的報告請妥善保管，避免未授權之第三方取得。本諮詢內容不構成醫療診斷，如有健康疑慮請諮詢專業醫師。</p>
+    <p>本表單所填寫之個人健康資料，僅供天領 Talent Lead 健康顧問進行諮詢評估使用。所有資料預設儲存於本機瀏覽器；僅在您主動點選「儲存到雲端」時，該筆資料才會傳送至您自行部署的 Cloudflare 資料庫，並受存取金鑰保護。列印或輸出的報告請妥善保管，避免未授權之第三方取得。本諮詢內容不構成醫療診斷，如有健康疑慮請諮詢專業醫師。</p>
   </footer>
 </main>
 
@@ -713,7 +724,7 @@ const LAB_FIELDS = [
   {label:"肝臟／腎臟疾病",   type:"text"}
 ];
 
-const KEY="tl_health_form_v1", NOTION_CFG_KEY="tl_notion_cfg_v1", LOGO_KEY="tl_brand_logo_v1",
+const KEY="tl_health_form_v1", CLOUD_CFG_KEY="tl_cloud_cfg_v1", LOGO_KEY="tl_brand_logo_v1",
       FAVICON_KEY="tl_brand_favicon_v1", ADVISOR_KEY="tl_advisor_v1", DEFAULT_LOGO="images/logo.jpeg";
 const DEG={輕:1,中:2,重:3}, FREQ={"1-2":1,"3-5":2,"6-7":3}, DUR={近期:1,半年以上:2,超過一年:3};
 const LV_TEXT={red:"需優先處理",yellow:"需留意",green:"輕微"};
@@ -759,6 +770,8 @@ const ICONS={
   expand:'<path d="m7 15 5 5 5-5M7 9l5-5 5 5"/>',
   collapse:'<path d="m7 20 5-5 5 5M7 4l5 5 5-5"/>',
   saved:'<path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="M22 4 12 14l-3-3"/>',
+  history:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+  trash:'<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/>',
   lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
 };
 const icon=(n,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]||""}</svg>`;
@@ -886,7 +899,8 @@ const secById=id=>SECS.find(s=>s.id===id);
 $$("[data-icon]").forEach(el=>el.insertAdjacentHTML("afterbegin",icon(el.dataset.icon,el.classList.contains("btn-sm")?16:18)));
 
 /* ================= 狀態 ================= */
-let reviewed=new Set(), uploadInfo=null, lastSaved=null, saveFailed=false, dirty=false;
+const newId=()=>(crypto.randomUUID?crypto.randomUUID():"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,10));
+let reviewed=new Set(), syncInfo=null, consultId=newId(), lastSaved=null, saveFailed=false, dirty=false;
 
 function setOpen(s,open){
   s.el.classList.toggle("collapsed",!open);
@@ -1162,12 +1176,13 @@ function snapshot(){
   const d=collect();
   d.__advisorName=advisorName();
   d.__reviewed=[...reviewed];
-  if(uploadInfo) d.__uploaded=uploadInfo;
+  if(syncInfo) d.__synced=syncInfo;
+  d.__id=consultId;
   d.__savedAt=Date.now();
   return d;
 }
-// 上傳後又修改內容時，提醒 Notion 上的是舊版
-function markEdited(){ if(uploadInfo&&!uploadInfo.edited){ uploadInfo.edited=true; renderUploadState(); } }
+// 儲存到雲端後又修改內容時，提醒雲端上的是舊版
+function markEdited(){ if(syncInfo&&!syncInfo.edited){ syncInfo.edited=true; renderSyncState(); } }
 function save(){
   clearTimeout(debounceTimers.save); dirty=false;
   const d=snapshot();
@@ -1184,7 +1199,8 @@ function apply(d){
     else el.value=d[el.name]??"";
   });
   reviewed=new Set(Array.isArray(d.__reviewed)?d.__reviewed:[]);
-  uploadInfo=d.__uploaded&&d.__uploaded.at?d.__uploaded:null;
+  syncInfo=d.__synced&&d.__synced.at?d.__synced:null;
+  consultId=/^[A-Za-z0-9_-]{8,64}$/.test(d.__id||"")?d.__id:newId();
   lastSaved=d.__savedAt||null;
 }
 function afterApply(){
@@ -1192,7 +1208,7 @@ function afterApply(){
   $$("[data-sym]",form).forEach(refreshSym);
   LAB_FIELDS.forEach((f,i)=>refreshLab(i));
   $$("textarea",form).forEach(grow);
-  refreshAll(); renderUploadState(); renderSaveState();
+  refreshAll(); renderSyncState(); renderSaveState();
 }
 function load(){
   const raw=store.get(KEY); if(!raw) return null;
@@ -1206,13 +1222,12 @@ function renderSaveState(){
       :`${icon("lock",14)}資料只會儲存在這台裝置`;
   });
 }
-function renderUploadState(){
-  const el=$("#uploadState");
-  el.classList.toggle("ok",!!uploadInfo&&!uploadInfo.edited);
-  el.classList.toggle("warn",!!uploadInfo&&!!uploadInfo.edited);
-  if(!uploadInfo){ el.innerHTML=`${icon("upload",14)}這筆資料尚未上傳到 Notion`; return; }
-  const link=/^https:\/\//.test(uploadInfo.url||"")?` · <a href="${esc(uploadInfo.url)}" target="_blank" rel="noopener">開啟 Notion 頁面</a>`:"";
-  el.innerHTML=`${icon("check",14)}已上傳到 Notion · ${fmtTime(uploadInfo.at)}${uploadInfo.edited?" · 之後有修改，尚未重新上傳":""}${link}`;
+function renderSyncState(){
+  const el=$("#syncState");
+  el.classList.toggle("ok",!!syncInfo&&!syncInfo.edited);
+  el.classList.toggle("warn",!!syncInfo&&!!syncInfo.edited);
+  if(!syncInfo){ el.innerHTML=`${icon("upload",14)}這筆資料尚未儲存到雲端`; return; }
+  el.innerHTML=`${icon("check",14)}已儲存到雲端 · ${fmtTime(syncInfo.at)}${syncInfo.edited?" · 之後有修改，尚未重新儲存":""}`;
 }
 // 離開頁面前，只在有尚未寫入的變更時才存（避免舊分頁覆蓋其他分頁的新資料）
 const flushSave=()=>{ if(dirty) save(); };
@@ -1331,7 +1346,7 @@ document.addEventListener("keydown",e=>{
   else closeDrawer();
 });
 
-/* ================= 諮詢資料（複製、報告、Notion 共用） ================= */
+/* ================= 諮詢資料（複製、報告、雲端共用） ================= */
 function buildConsultData(){
   const d=collect();
   const g=k=>(d[k]==null?"":String(d[k])).trim();
@@ -1362,8 +1377,7 @@ function buildConsultData(){
     metrics:{sleep:g(METRIC_FIELDS.sleep),stress:g(METRIC_FIELDS.stress),vitality:g(METRIC_FIELDS.vitality)},
     riskPct:r.pct,riskLabel:r.level.label,sections,
     labDate:g("健檢時間"),labFreq:g("健檢頻率"),labs,labsText,
-    promote:pick(PROMOTE),genePairs,
-    uploadedAt:new Date().toLocaleString("zh-TW",{hour12:false})
+    promote:pick(PROMOTE),genePairs
   };
 }
 
@@ -1526,54 +1540,112 @@ window.addEventListener("beforeprint",()=>{
 });
 window.addEventListener("afterprint",()=>{ document.title=titleBeforePrint; });
 
-/* ================= 上傳到 Notion（經 Cloudflare Worker） ================= */
-function getNotionCfg(){ try{ return JSON.parse(store.get(NOTION_CFG_KEY))||{}; }catch(e){ return {}; } }
+/* ================= 雲端資料庫（Cloudflare Worker + D1） ================= */
+function getCloudCfg(){ try{ return JSON.parse(store.get(CLOUD_CFG_KEY))||{}; }catch(e){ return {}; } }
 function friendlyError(msg){
-  if(/Failed to fetch|Load failed|NetworkError|network/i.test(msg)) return "無法連線到上傳服務。請確認 Worker 網址正確（https:// 開頭），以及這台裝置有網路。";
+  if(/Failed to fetch|Load failed|NetworkError|network/i.test(msg)) return "無法連線到雲端服務。請確認 Worker 網址正確（https:// 開頭），以及這台裝置有網路。";
   return msg;
 }
-function setUploading(on){
-  $$('[data-action="notion"]').forEach(b=>{
-    b.disabled=on;
-    if(on){ b.dataset.label=b.innerHTML; b.innerHTML=`<span class="spin"></span>上傳中…`; }
-    else if(b.dataset.label){ b.innerHTML=b.dataset.label; }
-  });
-}
-async function uploadToNotion(){
-  closeDrawer();
-  const cfg=getNotionCfg();
-  if(!cfg.url){ openSettings({focus:"notion",then:uploadToNotion}); return; }
-  const data=buildConsultData();
-  if(!data.name){ toast("請先填寫個案姓名"); focusField("姓名"); return; }
-  if(uploadInfo&&!await confirmModal({title:"這筆資料已經上傳過",ok:"仍要上傳",
-    msg:`上次上傳時間：${fmtTime(uploadInfo.at)}${uploadInfo.edited?"，之後內容有修改":""}。<br>再上傳一次，Notion 會多一筆新的紀錄（舊的那筆不會被更新）。`})) return;
-  setUploading(true);
+async function cloudFetch(path,{method="GET",body,cfg=getCloudCfg()}={}){
   const ctrl=new AbortController(), timer=setTimeout(()=>ctrl.abort(),25000);
   try{
-    const headers={"Content-Type":"application/json"};
-    if(cfg.key) headers["X-Upload-Key"]=cfg.key;
-    const res=await fetch(cfg.url,{method:"POST",headers,body:JSON.stringify(data),signal:ctrl.signal});
+    const headers={}; if(cfg.key) headers["X-Upload-Key"]=cfg.key;
+    if(body!==undefined) headers["Content-Type"]="application/json";
+    const res=await fetch(cfg.url+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),signal:ctrl.signal});
     const out=await res.json().catch(()=>({}));
     if(!res.ok||!out.ok) throw new Error(out.error||`HTTP ${res.status}`);
-    uploadInfo={at:Date.now(),url:typeof out.url==="string"?out.url:""};
-    save(); renderUploadState();
-    const url=/^https:\/\//.test(uploadInfo.url)?uploadInfo.url:"";
-    openModal({title:"已上傳到 Notion",
-      body:`<p>「${esc(data.name)}」的諮詢紀錄已新增到 Notion 資料庫。</p><p style="font-size:.8rem;color:var(--ink-3)">要接著服務下一位個案，可以直接開始新諮詢。</p>`,
-      actions:[
-        {label:"開始新諮詢",kind:"ghost",icon:"plus",onClick:()=>{ setTimeout(doClear,0); }},
-        url?{label:"開啟 Notion 頁面",kind:"primary",icon:"external",onClick:()=>{ window.open(url,"_blank","noopener"); }}
-           :{label:"完成",kind:"primary"}
-      ]});
+    return out;
   }catch(e){
-    const msg=e.name==="AbortError"?"連線逾時，請確認網路後再試一次。":friendlyError(String(e.message||e));
-    openModal({title:"上傳失敗",
+    throw new Error(e.name==="AbortError"?"連線逾時，請確認網路後再試一次。":friendlyError(String(e.message||e)));
+  }finally{ clearTimeout(timer); }
+}
+function setSaving(on){
+  $$('[data-action="cloud"]').forEach(b=>{
+    b.disabled=on;
+    if(on){ b.dataset.label=b.innerHTML; b.innerHTML=`<span class="spin"></span>儲存中…`; }
+    else if(b.dataset.label){ b.innerHTML=b.dataset.label; delete b.dataset.label; }
+  });
+}
+async function saveToCloud(){
+  closeDrawer();
+  const cfg=getCloudCfg();
+  if(!cfg.url){ openSettings({focus:"cloud",then:saveToCloud}); return; }
+  const data=buildConsultData();
+  if(!data.name){ toast("請先填寫個案姓名"); focusField("姓名"); return; }
+  const form=snapshot(); delete form.__synced;
+  setSaving(true);
+  try{
+    const out=await cloudFetch(`/consults/${consultId}`,{method:"PUT",cfg,body:{
+      summary:{name:data.name,date:data.date,gender:data.gender,age:data.age,riskPct:data.sections.length?data.riskPct:null,
+        riskLabel:data.sections.length?data.riskLabel:"",advisor:data.advisor},form}});
+    syncInfo={at:out.updatedAt||Date.now()};
+    save(); renderSyncState();
+    openModal({title:"已儲存到雲端",
+      body:`<p>「${esc(data.name)}」的諮詢紀錄已儲存到雲端資料庫。</p><p style="font-size:.8rem;color:var(--ink-3)">之後修改再按一次「儲存到雲端」，會更新同一筆，不會重複新增。要接著服務下一位個案，可以直接開始新諮詢。</p>`,
+      actions:[{label:"開始新諮詢",kind:"ghost",icon:"plus",onClick:()=>{ setTimeout(newConsult,0); }},{label:"完成",kind:"primary"}]});
+  }catch(e){
+    openModal({title:"儲存失敗",
       body:`<p class="err-msg"></p><p style="font-size:.8rem;color:var(--ink-3)">可以到「設定」檢查 Worker 網址與金鑰；也可以先用「複製文字」備份。</p>`,
-      actions:[{label:"複製文字",kind:"ghost",icon:"copy",onClick:()=>{ copyText(); }},{label:"檢查設定",kind:"primary",icon:"settings",onClick:()=>{ setTimeout(()=>openSettings({focus:"notion"}),0); }}]})
-      .body.querySelector(".err-msg").textContent=msg;
-  }finally{
-    clearTimeout(timer); setUploading(false);
+      actions:[{label:"複製文字",kind:"ghost",icon:"copy",onClick:()=>{ copyText(); }},{label:"檢查設定",kind:"primary",icon:"settings",onClick:()=>{ setTimeout(()=>openSettings({focus:"cloud"}),0); }}]})
+      .body.querySelector(".err-msg").textContent=e.message;
+  }finally{ setSaving(false); }
+}
+
+/* ---------- 歷史紀錄 ---------- */
+function openHistory(){
+  closeDrawer();
+  const cfg=getCloudCfg();
+  if(!cfg.url){ openSettings({focus:"cloud",then:openHistory}); return; }
+  const body=document.createElement("div");
+  body.innerHTML=`<input type="text" class="hist-search" placeholder="用姓名搜尋" aria-label="用姓名搜尋" autocomplete="off"><div class="hist-list" aria-live="polite"></div>`;
+  const input=$(".hist-search",body), list=$(".hist-list",body);
+  const m=openModal({title:"歷史紀錄",body,size:"md",actions:[{label:"關閉",kind:"ghost"}]});
+  let seq=0;
+  async function refresh(){
+    const my=++seq;
+    list.innerHTML=`<p class="hist-empty">讀取中…</p>`;
+    try{
+      const out=await cloudFetch(`/consults?limit=100&q=${encodeURIComponent(input.value.trim())}`,{cfg});
+      if(my!==seq) return;
+      if(!out.items.length){ list.innerHTML=`<p class="hist-empty">${input.value.trim()?"找不到符合的紀錄":"還沒有儲存過的諮詢紀錄"}</p>`; return; }
+      list.innerHTML=out.items.map(it=>`<div class="hist-item" data-id="${esc(it.id)}">
+        <button type="button" class="hist-main" data-load><b>${esc(it.name||"未命名")}</b>
+          <small>${esc([it.consult_date,it.gender,it.age!=null&&it.age+" 歲",it.risk_label&&`風險：${it.risk_label}`].filter(Boolean).join(" · "))||"—"}<br>最後儲存 ${esc(fmtTime(it.updated_at))}</small></button>
+        <button type="button" class="icon-btn sm" data-del aria-label="刪除 ${esc(it.name||"未命名")}">${icon("trash",16)}</button></div>`).join("");
+    }catch(e){
+      if(my!==seq) return;
+      list.innerHTML=`<p class="hist-empty"></p>`; list.firstChild.textContent=e.message;
+    }
   }
+  input.addEventListener("input",()=>debounce("hist",refresh,300));
+  list.addEventListener("click",async e=>{
+    const item=e.target.closest("[data-id]"); if(!item) return;
+    const id=item.dataset.id, nm=$("b",item).textContent;
+    if(e.target.closest("[data-del]")){
+      if(!await confirmModal({title:"刪除這筆紀錄？",ok:"刪除",danger:true,msg:`雲端資料庫上「${esc(nm)}」的紀錄會被刪除，無法復原。`})) return;
+      try{ await cloudFetch(`/consults/${id}`,{method:"DELETE",cfg}); toast("已刪除"); if(id===consultId&&syncInfo){ syncInfo=null; renderSyncState(); scheduleSave(); } refresh(); }
+      catch(err){ toast(err.message); }
+    }else if(e.target.closest("[data-load]")){
+      const unsaved=!!F("姓名").value.trim()&&(!syncInfo||syncInfo.edited);
+      if(unsaved&&!await confirmModal({title:"載入這筆紀錄？",ok:"載入",danger:true,
+        msg:`目前表單${syncInfo?"上次儲存後的修改":"的內容"}還沒有儲存到雲端，載入後會被取代。`})) return;
+      try{
+        const out=await cloudFetch(`/consults/${id}`,{cfg});
+        m.close(); loadRecord(out.item);
+      }catch(err){ toast(err.message); }
+    }
+  });
+  refresh();
+  setTimeout(()=>input.focus({preventScroll:true}),80);
+}
+function loadRecord(item){
+  form.reset();
+  $$(".sym.open",form).forEach(x=>x.classList.remove("open"));
+  apply(Object.assign({},item.form,{__id:item.id,__synced:{at:item.updated_at}}));
+  SECS.forEach((s,i)=>setOpen(s,i===0));
+  afterApply(); save();
+  window.scrollTo({top:0,behavior:scrollBehavior()});
+  toast(`已載入「${item.name||"未命名"}」`);
 }
 function focusField(name){
   const el=F(name); if(!el) return;
@@ -1582,7 +1654,7 @@ function focusField(name){
   requestAnimationFrame(()=>{ el.scrollIntoView({block:"center",behavior:scrollBehavior()}); el.focus({preventScroll:true}); });
 }
 
-/* ================= 設定（顧問、Notion、品牌） ================= */
+/* ================= 設定（顧問、雲端資料庫、品牌） ================= */
 function readImage(file,max){
   return new Promise((resolve,reject)=>{
     const fr=new FileReader();
@@ -1606,7 +1678,7 @@ const BRAND={
   favicon:{key:FAVICON_KEY,max:64,apply:u=>{ $("#faviconLink").href=u; }}
 };
 function openSettings({focus="",then=null}={}){
-  const cfg=getNotionCfg();
+  const cfg=getCloudCfg();
   const brandRow=(k,label)=>`<div class="brand-row"><img class="brand-prev ${k}" data-prev="${k}" alt="">
     <div><div class="br-label">${label}</div><div class="br-btns">
       <button type="button" class="btn btn-sm ghost" data-up="${k}">上傳圖片</button>
@@ -1616,14 +1688,15 @@ function openSettings({focus="",then=null}={}){
   body.innerHTML=`
     <div class="set-group" id="set-advisor"><h4>健康顧問</h4>
       <label class="field"><span class="flabel">顯示名稱</span><input type="text" id="setAdvisor" maxlength="30"></label></div>
-    <div class="set-group" id="set-notion"><h4>Notion 上傳</h4>
-      <p class="hint">填入已部署的 Cloudflare Worker 網址與上傳金鑰（部署方式見 <code>notion-worker/README.md</code>）。只儲存在這台裝置。</p>
+    <div class="set-group" id="set-cloud"><h4>雲端資料庫</h4>
+      <p class="hint">填入已部署的 Cloudflare Worker 網址與存取金鑰（部署方式見 <code>worker/README.md</code>）。只儲存在這台裝置。</p>
       <label class="field"><span class="flabel">Worker 網址</span>
         <input type="url" id="setUrl" placeholder="https://xxx.workers.dev" inputmode="url" autocapitalize="off" spellcheck="false"></label>
-      <div class="field"><label class="flabel" for="setKey">上傳金鑰（UPLOAD_KEY）</label>
+      <div class="field"><label class="flabel" for="setKey">存取金鑰（API_KEY）</label>
         <div class="pw"><input type="password" id="setKey" placeholder="與 Worker 設定的相同" autocomplete="off" autocapitalize="off" spellcheck="false">
         <button type="button" class="icon-btn" id="setReveal" aria-label="顯示金鑰" aria-pressed="false">${icon("eye",18)}</button></div></div>
-      <p class="field-err" id="setErr" hidden></p></div>
+      <button type="button" class="btn btn-sm ghost" id="setTest">測試連線</button>
+      <p class="field-err" id="setErr" hidden></p><p class="ok-text" id="setOk" hidden></p></div>
     <div class="set-group" id="set-brand"><h4>品牌圖片</h4>
       <p class="hint">建議使用正方形圖片，會自動縮小後儲存在這台裝置。</p>
       ${brandRow("logo","Logo（表單左上角）")}${brandRow("favicon","Favicon（瀏覽器分頁圖示）")}</div>`;
@@ -1633,6 +1706,16 @@ function openSettings({focus="",then=null}={}){
   $("#setReveal",body).addEventListener("click",e=>{
     const k=$("#setKey",body), show=k.type==="password";
     k.type=show?"text":"password"; e.currentTarget.setAttribute("aria-pressed",String(show));
+  });
+  $("#setTest",body).addEventListener("click",async e=>{
+    const btn=e.currentTarget, err=$("#setErr",body), ok=$("#setOk",body);
+    const url=$("#setUrl",body).value.trim().replace(/\/+$/,""), key=$("#setKey",body).value.trim();
+    err.hidden=true; ok.hidden=true;
+    if(!/^https:\/\/[^\s]+$/.test(url)){ err.textContent="請先填入 https:// 開頭的完整 Worker 網址"; err.hidden=false; return; }
+    btn.disabled=true;
+    try{ await cloudFetch("/consults?limit=1",{cfg:{url,key}}); ok.textContent="✓ 連線成功，金鑰正確"; ok.hidden=false; }
+    catch(x){ err.textContent=x.message; err.hidden=false; }
+    finally{ btn.disabled=false; }
   });
   const renderPrev=k=>{ $(`[data-prev="${k}"]`,body).src=store.get(BRAND[k].key)||DEFAULT_LOGO; };
   Object.keys(BRAND).forEach(k=>{
@@ -1653,11 +1736,11 @@ function openSettings({focus="",then=null}={}){
   });
   const m=openModal({title:"設定",body,size:"md",actions:[
     {label:"取消",kind:"ghost"},
-    {label:then?"儲存並上傳":"儲存",kind:"primary",onClick:()=>{
+    {label:then?"儲存並繼續":"儲存",kind:"primary",onClick:()=>{
       const url=$("#setUrl",body).value.trim().replace(/\/+$/,""), key=$("#setKey",body).value.trim(), err=$("#setErr",body);
       if(url&&!/^https:\/\/[^\s]+$/.test(url)){ err.textContent="Worker 網址需要是 https:// 開頭的完整網址"; err.hidden=false; $("#setUrl",body).focus(); return false; }
       if(then&&!url){ err.textContent="請先填入 Worker 網址才能上傳"; err.hidden=false; $("#setUrl",body).focus(); return false; }
-      store.set(NOTION_CFG_KEY,JSON.stringify({url,key}));
+      store.set(CLOUD_CFG_KEY,JSON.stringify({url,key}));
       setAdvisor($("#setAdvisor",body).value.trim()); save();
       toast("設定已儲存");
       if(then) setTimeout(then,0);
@@ -1666,7 +1749,7 @@ function openSettings({focus="",then=null}={}){
   if(focus) requestAnimationFrame(()=>{
     const g=$("#set-"+focus,body); if(!g) return;
     g.scrollIntoView({block:"start"});
-    if(focus==="notion"&&!cfg.url) $("#setUrl",body).focus();
+    if(focus==="cloud"&&!cfg.url) $("#setUrl",body).focus();
   });
   return m;
 }
@@ -1678,7 +1761,7 @@ function doClear(){
   clearTimeout(debounceTimers.save); dirty=false;
   store.del(KEY);
   form.reset();
-  reviewed.clear(); uploadInfo=null; lastSaved=null;
+  reviewed.clear(); syncInfo=null; consultId=newId(); lastSaved=null;
   $$(".sym.open",form).forEach(s=>s.classList.remove("open"));
   $$("input.invalid",form).forEach(i=>i.classList.remove("invalid"));
   $$("textarea",form).forEach(t=>t.style.height="");
@@ -1694,14 +1777,14 @@ function doClear(){
   }});
 }
 async function newConsult(){
-  const warn=!uploadInfo?`<br><b style="color:var(--bad-ink)">這筆資料還沒有上傳到 Notion</b>，建議先上傳或複製備份。`
-    :uploadInfo.edited?`<br><b style="color:var(--bad-ink)">上傳後修改的內容還沒有重新上傳</b>，建議先上傳或複製備份。`:"";
+  const warn=!syncInfo?`<br><b style="color:var(--bad-ink)">這筆資料還沒有儲存到雲端</b>，建議先儲存或複製備份。`
+    :syncInfo.edited?`<br><b style="color:var(--bad-ink)">儲存後修改的內容還沒有重新儲存</b>，建議先儲存或複製備份。`:"";
   if(await confirmModal({title:"開始新的諮詢？",ok:"清除並開始",danger:true,
     msg:`目前表單的內容會全部清除。${warn}`})) doClear();
 }
 
 /* ================= 動作按鈕（目錄與完成區共用） ================= */
-const ACTIONS={report:()=>{ closeDrawer(); openReport(); },notion:uploadToNotion,copy:copyText,
+const ACTIONS={report:()=>{ closeDrawer(); openReport(); },cloud:saveToCloud,history:openHistory,copy:copyText,
   settings:()=>{ closeDrawer(); openSettings(); },new:newConsult};
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-action]"); if(!b||b.disabled) return;
